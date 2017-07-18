@@ -17,7 +17,6 @@ setup(name='tio',
         'tldevice',
     ],
     scripts=[
-        'examples/vm4cal.py',
         'examples/interact.py'
     ],
     zip_safe=False)
