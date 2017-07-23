@@ -17,6 +17,6 @@ setup(name='tio',
         'tldevice',
     ],
     scripts=[
-        'examples/interact.py'
+        'examples/itio.py'
     ],
     zip_safe=False)

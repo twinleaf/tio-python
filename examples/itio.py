@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Twinleaf vector magnetometer tumble calibrator
-License: Twinleaf LLC, all rights reserved
+itio: Interactive Twinleaf I/O 
+License: MIT
 Author: Thomas Kornack <kornack@twinleaf.com>
 """
 

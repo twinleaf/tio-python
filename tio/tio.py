@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 """
-Twinleaf IO (TIO)
+Twinleaf IO (tio) - A serialization for instrumentation
 Copyright 2017 Twinleaf LLC
 License: MIT
 
