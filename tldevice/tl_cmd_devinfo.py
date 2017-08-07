@@ -8,10 +8,12 @@
 import struct
 import yaml
 import tio
+from .tl_cmd_conf import *
 
 class TwinleafDevInfoController(object):
   def __init__(self, dev):
     self._dev = dev
+    self.conf = TwinleafConfigController(dev)
 
   def desc(self):
     return self._dev._tio.rpc('dev.desc').decode('utf-8')

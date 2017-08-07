@@ -8,17 +8,15 @@ License: MIT
 """
 
 import tio
-from .tl_cmd_conf import *
 from .tl_cmd_devinfo import *
 import types
 
 class Device():
   def __init__(self, url="tcp://localhost"):
     self._tio = tio.session(url)
+    self.dev = TwinleafDevInfoController(self)
     self._add_rpcs()
     self._add_dstreams()
-    self.conf = TwinleafConfigController(self)
-    self.dev = TwinleafDevInfoController(self)
     self._longname = self.dev.desc()
     self._shortname = self.dev.name().lower()
 

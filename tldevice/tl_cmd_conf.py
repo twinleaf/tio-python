@@ -15,11 +15,11 @@ class TwinleafConfigController(object):
 
   def save(self):
     """Commits settings to EEPROM."""
-    return self._dev._tio.rpc('conf.save')
+    return self._dev._tio.rpc('dev.conf.save')
 
   def load(self):
     """Reads settings from EEPROM."""
-    return self._dev._tio.rpc('conf.load')
+    return self._dev._tio.rpc('dev.conf.load')
 
   def _enum(self):
     """
