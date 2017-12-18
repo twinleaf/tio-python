@@ -9,14 +9,17 @@ License: MIT
 
 import tio
 from .tl_cmd_devinfo import *
+from .tl_cmd_data import *
 import types
 
 class Device():
-  def __init__(self, url="tcp://localhost"):
-    self._tio = tio.session(url)
+  def __init__(self, url="tcp://localhost", verbose=False, commands=[]):
+    self._tio = tio.session(url, verbose=verbose, commands=commands)
     self.dev = TwinleafDevInfoController(self)
+    self._add_pstreams()
     self._add_rpcs()
-    self._add_dstreams()
+    if self._tio.pstreams != {}:
+      self.data = TwinleafDataController(self)
     self._longname = self.dev.desc()
     self._shortname = self.dev.name().lower()
 
@@ -74,36 +77,33 @@ class Device():
       if rpc['valid']:
         self._add_rpc_path(path=rpc['name'], rpcType=rpc['datatype'], callWithValue=rpc['w'])
 
-  def _add_dstream_method(parent, parentClass=None, name="test", dstreamName=""):
+  def _add_pstream_method(parent, parentClass=None, name="test", pstreamName=""):
     def __init__(self):
       self._tio = parent._tio
-      self._dstreamName = dstreamName
+      self._pstreamName = pstreamName
     def __call__(self, samples=1, duration=None):
-      return self._tio.dstream(self._dstreamName, samples, duration)
-    def subscribe(self):
-      return self._tio.dstream_subscribe(self._dstreamName)
-    def unsubscribe(self):
-      return self._tio.dstream_unsubscribe(self._dstreamName)
-    if dstreamName is not "":
-      cls = type(name,(), {'__init__':__init__, '__call__':__call__, 'subscribe':subscribe, 'unsubscribe':unsubscribe })
+      return self._tio.dstream_read_topic(self._pstreamName, samples, duration)
+    #def rate(self):
+    #  return self._tio_pstream_rate(self._dstreamName)
+    if pstreamName is not "":
+      cls = type(name,(), {'__init__':__init__, '__call__':__call__}) #, 'rate':rate
     else:
       cls = type(name,(), {'__init__':__init__})
     clsInstance = cls()
     setattr(parentClass, name, clsInstance)
 
-  def _add_dstream_path(self, path="that.stream"):
+  def _add_pstream_path(self, path="that.stream"):
     parts = path.split('.')
     parent = self
     for part in parts[:-1]:
       if part not in vars(parent).keys():
-        self._add_dstream_method(parentClass=parent, name=part)
+        self._add_pstream_method(parentClass=parent, name=part)
       parent = parent.__dict__[part]
-    self._add_dstream_method(parentClass=parent, name=parts[-1], dstreamName=path)
+    self._add_pstream_method(parentClass=parent, name=parts[-1], pstreamName=path)
 
-  def _add_dstreams(self):
-    for dstream in self._tio.dstreams:
-      self._add_dstream_path(path=dstream['name'])
-
+  def _add_pstreams(self):
+    for pstream in self._tio.pstreams.values():
+      self._add_pstream_path(path=pstream['pstream_name'])
 
 if __name__ == "__main__":
   device = Device()

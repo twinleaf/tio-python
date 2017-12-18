@@ -10,13 +10,37 @@ import yaml
 import tio
 from .tl_cmd_conf import *
 
+class TwinleafDevFirmwareInfoController(object):
+  def __init__(self, dev):
+    self._dev = dev
+
+  def rev(self):
+    return self._dev._tio.rpc('dev.firmware.rev').decode('utf-8')
+
+  def tstamp(self):
+    return self._dev._tio.rpc_val('dev.firmware.tstamp', rpcType = tio.UINT32_T)
+
+  def osver(self):
+    return self._dev._tio.rpc_val('dev.firmware.osver', rpcType = tio.UINT16_T)
+
+
 class TwinleafDevInfoController(object):
   def __init__(self, dev):
     self._dev = dev
     self.conf = TwinleafConfigController(dev)
+    self.firmware = TwinleafDevFirmwareInfoController(dev)
 
-  def desc(self):
-    return self._dev._tio.rpc('dev.desc').decode('utf-8')
+  def lock(self, value = None):
+    return self._dev._tio.rpc_val('dev.lock', rpcType = tio.UINT8_T, value = value)
+
+  def unlock(self, value = None):
+    return self._dev._tio.rpc_val('dev.unlock', rpcType = tio.UINT8_T, value = value)
+
+  def systime(self):
+    return self._dev._tio.rpc_val('dev.systime', rpcType = tio.UINT64_T)
+
+  def loglevel(self, value = None):
+    return self._dev._tio.rpc_val('dev.loglevel', rpcType = tio.UINT8_T, value = value)
 
   def name(self):
     return self._dev._tio.rpc('dev.name').decode('utf-8')
@@ -24,44 +48,47 @@ class TwinleafDevInfoController(object):
   def id(self):
     return self._dev._tio.rpc_val('dev.id', rpcType = tio.UINT16_T)
 
-  def lock(self, value = None):
-    return self._dev._tio.rpc_val('dev.lock', rpcType = tio.UINT8_T, value = value)
+  def version_major(self):
+    return self._dev._tio.rpc_val('dev.version_major', rpcType = tio.UINT16_T)
 
-  def loglevel(self, value = None):
-    return self._dev._tio.rpc_val('dev.loglevel', rpcType = tio.UINT8_T, value = value)
+  def version_minor(self):
+    return self._dev._tio.rpc_val('dev.version_minor', rpcType = tio.UINT16_T)
 
-  def mcu_loglevel(self, value = None):
-    return self._dev._tio.rpc_val('dev.mcu.loglevel', rpcType = tio.UINT8_T, value = value)
+  def desc(self):
+    return self._dev._tio.rpc('dev.desc').decode('utf-8')
 
-  def mcu_fw_rev(self):
-    return self._dev._tio.rpc('dev.mcu.fw_rev').decode('utf-8')
-
-  def mcu_fw_time(self):
-    return self._dev._tio.rpc_val('dev.mcu.fw_time', rpcType = tio.UINT32_T)
+  def uid(self):
+    return self._dev._tio.rpc('dev.uid').hex()
 
   def mcu_id(self):
     return self._dev._tio.rpc('dev.mcu.id').hex()
 
-  def systime(self):
-    return self._dev._tio.rpc_val('dev.systime', rpcType = tio.UINT64_T)
 
-  def version(self):
-    return self._dev._tio.rpc_val('dev.version', rpcType = tio.UINT16_T)
-
-  def minor_version(self):
-    return self._dev._tio.rpc_val('dev.minor_version', rpcType = tio.UINT16_T)
 
 # Test
 """
-csb.dev.desc()
+csb.dev.lock()
+csb.dev.unlock()
+csb.dev.systime()
+csb.dev.loglevel()
 csb.dev.name()
 csb.dev.id()
-#csb.dev.lock()
-csb.dev.loglevel()
-csb.dev.mcu_loglevel()
-csb.dev.mcu_fw_rev()
-csb.dev.mcu_fw_time()
-csb.dev.systime()
-csb.dev.version()
-csb.dev.minor_version()
+csb.dev.version_major()
+csb.dev.version_minor()
+csb.dev.desc()
+csb.dev.uid()
+csb.dev.mcu_id()
+
+csb.dev.firmware.rev()
+csb.dev.firmware.tstamp()
+csb.dev.firmware.osver()
+
+csb.dev.port.id()
+csb.dev.port.boot_mode()
+csb.dev.port.mode()
+csb.dev.port.outputs()
+csb.dev.port.inputs()
+csb.dev.port.discover()
+
+
 """

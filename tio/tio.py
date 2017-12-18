@@ -8,11 +8,17 @@ License: MIT
 A simple protocol for working with sensors through single-port/serial connections.
 """
 
+import serial
 import socket
+import threading
 import struct
 import random
 import urllib.parse
 import signal # Timeout; NB: not OK for multithreaded applications
+import time
+import math
+import queue
+import slip
 
 TL_PTYPE_NONE       = 0
 TL_PTYPE_INVALID    = 0
@@ -20,8 +26,11 @@ TL_PTYPE_LOG        = 1 # Log messages
 TL_PTYPE_RPC_REQ    = 2 # RPC request
 TL_PTYPE_RPC_REP    = 3 # RPC reply
 TL_PTYPE_RPC_ERROR  = 4 # RPC error
-TL_PTYPE_STREAMDESC = 5 # Description of data in a stream
-TL_PTYPE_USER       = 6
+TL_PTYPE_HEARTBEAT  = 5 # NOP heartbeat
+TL_PTYPE_TIMEBASE   = 6 # Update to a timebase's parameters
+TL_PTYPE_PSTREAM    = 7 # Update to a pstream's parameters
+TL_PTYPE_DSTREAM    = 8 # Update to a dstream's parameters
+TL_PTYPE_USER       = 64
 TL_PTYPE_STREAM0    = 128
 
 TL_RPC_ERRORS = [ \
@@ -83,60 +92,162 @@ class TLRPCException(Exception):
     pass
 
 class session(object):
-  def __init__(self, url="tcp://localhost", verbose = False):
-    uri = urllib.parse.urlparse(url)
-    address = uri.hostname
-    port = uri.port
-    if port is None:
-      port = 7855
-    self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    self.socket.connect((address, port))
-    self.socket.settimeout(0) # Non-blocking mode
+  def __init__(self, url="tcp://localhost", verbose = False, commands=[]):
+
+    # Connect to either TCP socket or serial port
+    self.uri = urllib.parse.urlparse(url)
+    if self.uri.scheme == "tcp":
+      if self.uri.port is None:
+        port = 7855
+      else:
+        port = self.uri.port
+      self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      self.socket.connect((self.uri.hostname, port))
+      self.socket.settimeout(0) # Non-blocking mode
+    else:
+      self.buffer = bytearray()
+      self.serial = serial.serial_for_url(url, baudrate=115200, timeout=1)
+
+    # Initialize queues and threading controls
+    self.pub_queue = queue.Queue(maxsize=1000)
+    self.req_queue = queue.Queue(maxsize=1)
+    self.rep_queue = queue.Queue(maxsize=1)
+    self.lock = threading.Lock()
+    self.alive = True
+
+    # Launch socket management thread
+    self.socket_recv_thread = threading.Thread(target=self._recv_thread)
+    self.socket_recv_thread.daemon = True
+    self.socket_recv_thread.name = 'recv-thread'
+    self.socket_recv_thread.start()
+    self.socket_send_thread = threading.Thread(target=self._send_thread)
+    self.socket_send_thread.daemon = True
+    self.socket_send_thread.name = 'send-thread'
+    self.socket_send_thread.start()
+      
+    # TIO state
     self.rpcs = []
     self.rpcNames = {}
-    self.dstreams = []
-    self.dstreamNames = {}
+    self.timebases = []
+    self.pstreams = {}
+    self.dstreamInfo = None
+    self.streams = []
+    self.columns = []
+    self.columnsByName = {}
+    self.rowunpackByBytes = {}
     self.verbose = verbose
 
     # Timeout
     self.timeout = 2 # seconds
     signal.signal(signal.SIGALRM, self._soft_timeout_handler)
 
+    # Startup commands
+    for command, payload in commands:
+      self.rpc(command, payload.encode('utf-8') )
+      #time.sleep(0.1)
+
     # Query rpcs and dstreams
     # TODO: Caching!
     self.rpcList()
-    self.dstreamList()
-    #print(f"Found {len(self.rpcs)} RPCs and {len(self.dstreams)} data streams")
+    self.data_send_all()
+    #print(f"Found {len(self.rpcs)} RPCs and {len(self.pstreams)} data streams")
 
+  def _recv_thread(self):
+    while True:
+      packet = self._recv()
+      if packet['type'] == TL_PTYPE_STREAM0:
+        try:
+          self.pub_queue.put(packet, block=False)
+        except queue.Full:
+          self.pub_queue.get() # Toss a packet
+          self.pub_queue.put(packet, block=False)
+      elif packet['type'] == TL_PTYPE_RPC_REP or packet['type'] == TL_PTYPE_RPC_ERROR:
+        try:
+          self.rep_queue.put(packet, block=False)
+        except queue.Full:
+          self.pub_queue.get() # Toss a packet
+          self.pub_queue.put(packet, block=False)
+          print("Tossing an unclaimed REP!")
+
+  def _send_thread(self):
+    while True:
+      # Blocks
+      self._send(self.req_queue.get())
 
   def _soft_timeout_handler(self, signum, frame):
     raise TimeoutError()
 
   def flush(self):
     signal.alarm(self.timeout)
-    while True:
+    while not self.pub_queue.empty():
       try:
-        data = self.socket.recv(8192)
+        self.pub_queue.get()
       except:
         signal.alarm(0)
         break
-      if not data:
-        signal.alarm(0)
-        break
 
-  def recv(self):
+  def recv_tcp_packet(self):
     try:
-      header = self.socket.recv(4)
+      header = bytes(self.socket.recv(4))
     except BlockingIOError:
+      return b''
+    headerFields = struct.unpack("<BBH", header )
+    payloadType, routingSize, payloadSize = headerFields
+    if payloadSize > TL_PACKET_MAX_SIZE or routingSize>TL_PACKET_MAX_ROUTING_SIZE:
+      return b''
+    payload = bytes(self.socket.recv(payloadSize+routingSize))
+    return header+payload
+
+  def recv_slip_packet(self):
+    while self.alive and self.serial.is_open:
+      try:
+        # read all that is there or wait for one byte (blocking)
+        data = self.serial.read(self.serial.in_waiting or 1)
+      except serial.SerialException as e:
+        # probably some I/O problem such as disconnected USB serial
+        print(f"serial error: {e}")
+        return b""
+      else:
+        if data:
+          self.buffer.extend(data)
+          while slip.SLIP_END_CHAR in self.buffer:
+            packet, self.buffer = self.buffer.split(slip.SLIP_END_CHAR, 1)
+            return slip.decode(packet)
+
+  def _send(self, packet):
+    if self.uri.scheme == "tcp":
+      self.socket.send(packet)
+    else:
+      self.serial.write(slip.encode(packet))
+
+  def _recv(self):
+    if self.uri.scheme == "tcp":
+      packet = self.recv_tcp_packet()
+    else:
+      packet = self.recv_slip_packet()
+
+    if len(packet)<4:
       return { 'type':TL_PTYPE_NONE }
-    headerFields = struct.unpack("<BBH", bytes(header) )
+
+    # Parse header
+    header = packet[0:4]
+    payload = packet[4:]
+    headerFields = struct.unpack("<BBH", header )
     payloadType, routingSize, payloadSize = headerFields
     if payloadSize > TL_PACKET_MAX_SIZE or routingSize>TL_PACKET_MAX_ROUTING_SIZE:
       return { 'type':TL_PTYPE_INVALID }
-    payload = self.socket.recv(payloadSize+routingSize)
+
     parsedPacket = { 'type':payloadType }
 
-    if payloadType == TL_PTYPE_LOG: # Log message
+    if payloadType == TL_PTYPE_STREAM0: # Data stream 0
+      sampleNumber = struct.unpack("<I", bytes(payload[0:4]) )[0]
+      data = payload[4:]
+      parsedPacket['sampleNumber'] = sampleNumber
+      parsedPacket['rawdata'] = data
+      if self.verbose:
+        print(f"Data stream #{payloadType}, Sample #{sampleNumber}")
+
+    elif payloadType == TL_PTYPE_LOG: # Log message
       logMessage = payload.decode('utf-8')
       parsedPacket['message'] = logMessage
       if self.verbose:
@@ -157,52 +268,106 @@ class session(object):
       parsedPacket['error'] = errorCode
       parsedPacket['payload'] = errorPayload
       if self.verbose:
-        print(f"REP (ID 0x{requestID:04x}) Error {errorCode}: ")
+        print(f"REP (ID 0x{requestID:04x}) Error {errorCode} ")
 
-    elif payloadType == TL_PTYPE_STREAMDESC: # Got stream description
-      parsedPacket['version'] = struct.unpack("<H", bytes(payload[:2]) )[0]
-      if parsedPacket['version'] == 0:
-        streamDescription = struct.unpack("<HHQQIIBBHHBB", bytes(payload[:36]) )
-        parsedPacket['version']            = int(streamDescription[0])
-        parsedPacket['streamID']           = int(streamDescription[1])
-        parsedPacket['start_ts']           = int(streamDescription[2])
-        parsedPacket['sample_counter']     = int(streamDescription[3])
-        parsedPacket['period_numerator']   = int(streamDescription[4])
-        parsedPacket['period_denominator'] = int(streamDescription[5])
-        parsedPacket['flags']              = int(streamDescription[6])
-        parsedPacket['tstamp_type']        = int(streamDescription[7])
-        parsedPacket['restartID']          = int(streamDescription[8])
-        parsedPacket['sample_size']        = int(streamDescription[9])
-        parsedPacket['dtype_code']         = int(streamDescription[10])
-        parsedPacket['channels']           = int(streamDescription[11])
-        parsedPacket['name'] = payload[36:].decode('utf-8')
+    elif payloadType == TL_PTYPE_TIMEBASE:
+      timebaseDescription = struct.unpack("<HBBQLLLfBBBBBBBBBBBBBBBB", bytes(payload[:44]) )
+      parsedPacket['timebase_id']              = int(timebaseDescription[0])
+      parsedPacket['timebase_source']          = int(timebaseDescription[1])
+      parsedPacket['timebase_epoch']           = int(timebaseDescription[2])
+      parsedPacket['timebase_start_time']      = int(timebaseDescription[3])
+      parsedPacket['timebase_flags']           = int(timebaseDescription[4])
+      parsedPacket['timebase_period_num_us']   = int(timebaseDescription[5])
+      parsedPacket['timebase_period_denom_us'] = int(timebaseDescription[6])
+      parsedPacket['timebase_stability_ppb']   = float(timebaseDescription[7])
+      parsedPacket['timebase_src_params']      = timebaseDescription[8:8+16]
+
+      # Derive period
+      if parsedPacket['timebase_period_denom_us'] is not 0 \
+        and parsedPacket['timebase_period_num_us'] is not 0:
+         parsedPacket['timebase_period_us'] = parsedPacket['timebase_period_num_us'] \
+                                            / parsedPacket['timebase_period_denom_us']
+         parsedPacket['timebase_Fs'] = 1e6/parsedPacket['timebase_period_us']
       else:
-        raise NotImplementedError(f"Version {parsedPacket['version']} not implemented")
+         parsedPacket['timebase_period_us'] = math.nan
+         parsedPacket['timebase_Fs'] = math.nan
+      
+      self.timebases += [parsedPacket]
+    
+      if self.verbose:
+        print(f"timebase {parsedPacket['timebase_id']}: "+
+              f"{parsedPacket['timebase_Fs']} Hz")
+      streamDescription = struct.unpack("<HHLLIHHB", bytes(payload[:21]) )
+      parsedPacket['pstream_id']         = int(streamDescription[0])
+      
+      self.streamCompile()
+
+    elif payloadType == TL_PTYPE_PSTREAM: # Got pstream description
+      streamDescription = struct.unpack("<HHLLIHHB", bytes(payload[:21]) )
+      parsedPacket['pstream_id']         = int(streamDescription[0])
+      parsedPacket['pstream_timebase_id']= int(streamDescription[1])
+      parsedPacket['pstream_period']     = int(streamDescription[2])
+      parsedPacket['pstream_offset']     = int(streamDescription[3])
+      parsedPacket['pstream_fmt']        = int(streamDescription[4])
+      parsedPacket['pstream_flags']      = int(streamDescription[5])
+      parsedPacket['pstream_channels']   = int(streamDescription[6])
+      parsedPacket['pstream_type']       = int(streamDescription[7])
+      description                        = payload[21:].decode('utf-8').split("\t")
+      parsedPacket['pstream_name'] = description[0]
+      parsedPacket['pstream_column_names'] = [""]
+      parsedPacket['pstream_title'] = ""
+      parsedPacket['pstream_units'] = ""
+      parsedPacket['pstream_other_desc'] = ""
+      if len(description) >= 2:
+        parsedPacket['pstream_column_names'] = description[1].split(",")
+      if len(description) >= 3:
+        parsedPacket['pstream_title'] = description[2]
+      if len(description) >= 4:
+        parsedPacket['pstream_units'] = description[3]
+      if len(description) >= 5:
+        parsedPacket['pstream_other_desc'] = description[4:]
+
       # Derived values
-      parsedPacket['payload_type'] = parsedPacket['streamID']+128
-      parsedPacket['dtype'] = TYPES[parsedPacket['dtype_code']][1]
-      parsedPacket['dtype_pack'] = TYPES[parsedPacket['dtype_code']][0]
-      parsedPacket['dtype_bytes'] = TYPES[parsedPacket['dtype_code']][2]
-      if parsedPacket['period_denominator'] is not 0 and parsedPacket['period_numerator'] is not 0:
-        parsedPacket['period'] = 1e-6*parsedPacket['period_numerator'] / parsedPacket['period_denominator']
-      else:
-        parsedPacket['period'] = 0
-      if parsedPacket['period'] is not 0:
-        parsedPacket['Fs'] = 1/parsedPacket['period']
-      else:
-        parsedPacket['Fs'] = 0
-      self.dstreams[parsedPacket['streamID']] = parsedPacket
-      self.dstreamNames[parsedPacket['name']] = parsedPacket['streamID']
+      parsedPacket['pstream_dtype']      = TYPES[parsedPacket['pstream_type']][1]
+      parsedPacket['pstream_dtype_pack'] = TYPES[parsedPacket['pstream_type']][0]
+      parsedPacket['pstream_dtype_bytes']= TYPES[parsedPacket['pstream_type']][2]
+      
+      self.streamCompile()
+      
+      self.pstreams[parsedPacket['pstream_name']] = parsedPacket
       if self.verbose:
-        print(f"DSD (ID {parsedPacket['streamID']}): {parsedPacket['name']}")
+        print(f"pstream {parsedPacket['pstream_id']}:",payload[21:])
+        print(f"pstream {parsedPacket['pstream_id']}: {parsedPacket['pstream_name']} {parsedPacket['pstream_title']} ({parsedPacket['pstream_units']})")
 
-    elif payloadType >= TL_PTYPE_STREAM0: # Data stream
-      sampleNumber = struct.unpack("<I", bytes(payload[0:4]) )[0]
-      data = payload[4:]
-      parsedPacket['sampleNumber'] = sampleNumber
-      parsedPacket['rawdata'] = data
+    elif payloadType == TL_PTYPE_DSTREAM: # Got dstream description
+      streamDescription = struct.unpack("<HHLLQHH", bytes(payload[:24]) )
+      parsedPacket['dstream_id']               = int(streamDescription[0])
+      parsedPacket['dstream_timebase_id']      = int(streamDescription[1])
+      parsedPacket['dstream_period']           = int(streamDescription[2])
+      parsedPacket['dstream_offset']           = int(streamDescription[3])
+      parsedPacket['dstream_sample_number']    = int(streamDescription[4])
+      parsedPacket['dstream_total_components'] = int(streamDescription[5])
+      parsedPacket['dstream_flags']            = int(streamDescription[6])
+
       if self.verbose:
-        print(f"Data stream #{payloadType}, Sample #{sampleNumber}")
+        print(f"dstream {parsedPacket['dstream_id']}: timebase {parsedPacket['dstream_timebase_id']}, pstreams {parsedPacket['dstream_total_components']}")
+
+      if parsedPacket['dstream_id'] == 0: # Only support dstream 0
+        self.dstreamInfo = parsedPacket
+
+        self.streams = []
+        for i, stream in enumerate(range(self.dstreamInfo['dstream_total_components'])):
+          streamDescription = struct.unpack("<HHLL", bytes(payload[24+stream*12:24+(stream+1)*12]) )
+          streamInfo = {}
+          streamInfo['stream_pstream_id']    = int(streamDescription[0])
+          streamInfo['stream_flags']         = int(streamDescription[1])
+          streamInfo['stream_period']        = int(streamDescription[2])
+          streamInfo['stream_offset']        = int(streamDescription[3])
+          self.streams += [streamInfo]
+          if self.verbose:
+            print(f"dstream {parsedPacket['dstream_id']} component {i}: pstream {streamInfo['stream_pstream_id']}, period {streamInfo['stream_period']}")
+
+        self.streamCompile()
 
     else:
       if self.verbose:
@@ -221,26 +386,20 @@ class session(object):
       msg += payload
     header = struct.pack("<BBH", TL_PTYPE_RPC_REQ, 0, len(msg) )
     msg = header + msg
-    self.socket.send(msg)
+    self.req_queue.put(msg)
     if self.verbose:
-      print(f"REQ (ID 0x{requestID:04x}): {topic}")
+      print(f"REQ (ID 0x{requestID:04x}): {topic.decode('utf-8')}({payload})")
     return requestID
 
   def recv_rep(self, requestID = None):
-    signal.alarm(self.timeout)
-    while True:
-      parsedPacket = self.recv()
-      if parsedPacket['type'] == TL_PTYPE_RPC_REP \
-          or parsedPacket['type'] == TL_PTYPE_RPC_ERROR:
-        if requestID is None or requestID == parsedPacket['requestid']:
-          # Got something; turn off timeout
-          signal.alarm(0)
-          if parsedPacket['type'] == TL_PTYPE_RPC_ERROR:
-            raise TLRPCException( TL_RPC_ERRORS[parsedPacket['error']] )
-          if parsedPacket['payload'] == b'':
-            return None
-          else:
-            return parsedPacket['payload']
+    parsedPacket = self.rep_queue.get(timeout=self.timeout)
+    if requestID is None or requestID == parsedPacket['requestid']:
+      if parsedPacket['type'] == TL_PTYPE_RPC_ERROR:
+        raise TLRPCException( TL_RPC_ERRORS[parsedPacket['error']] )
+      if parsedPacket['payload'] == b'':
+        return None
+      else:
+        return parsedPacket['payload']
 
   def rpc(self, topic = "dev.desc", payload = None, flush=True):
     self.flush()
@@ -250,13 +409,15 @@ class session(object):
     except TLRPCException as rpc_error:
       print( f"RPC ERROR {topic}: {rpc_error}" )
 
-  def rpc_val(self, topic = "dstream.list", rpcType = FLOAT32_T, value = None):
+  def rpc_val(self, topic = "data.pstream.list", rpcType = FLOAT32_T, value = None, returnRaw = False):
     if value is not None:
       reqPayload = struct.pack("<"+TYPES[rpcType][0], value)
     else:
       reqPayload = None
     reply = self.rpc(topic, reqPayload)
     if reply is not None:
+      if returnRaw:
+        return reply
       if len(reply) > 0:
         return struct.unpack("<"+TYPES[rpcType][0], reply)[0]
     return None
@@ -268,9 +429,9 @@ class session(object):
   
   def rpcList(self):
     self.rpcs = []
-    rpcCount = self.rpc_val("rpc.list", UINT32_T)
+    rpcCount = self.rpc_val("rpc.list", UINT16_T)
     for rpcNumber in range(rpcCount):
-      rpcInfo = self.rpc("rpc.listinfo", struct.pack("<"+TYPES[UINT32_T][0], rpcNumber))
+      rpcInfo = self.rpc_val("rpc.listinfo", UINT16_T, rpcNumber, returnRaw = True)
       rpcType = rpcInfo[0]
       rpcFlags = rpcInfo[1]
       rpcName = rpcInfo[2:].decode('utf-8')
@@ -291,23 +452,89 @@ class session(object):
     #self.rpcs.sort(key=lambda x:x['name'])
     return self.rpcs
 
-  def dstreamList(self):
-    dstreamCount = self.rpc_val("dstream.list", UINT32_T)
-    self.dstreams = [None] * dstreamCount
-    for dstreamNumber in range(dstreamCount):
-      self.rpc_val("dstream.senddesc", UINT16_T, dstreamNumber)
-      #print(f"DS{dstreamNumber}: {self.dstreams[dstreamNumber]['name']}")
-    return self.dstreams
+  def data_send_all(self):
+    self.rpc("data.send_all")
 
-  def dstream_samples(self, topic, samples = 10):
-    dstreamInfo = self.dstreams[self.dstreamNames[topic]]
-    channels = dstreamInfo['channels']
+  def pstreamInfoFromID(self, id):
+    for pstream in self.pstreams.values():
+      if pstream['pstream_id'] == id:
+        return pstream
+    return {} # Not found
+
+  def pstream_active(self, topic, set=None):
+    if set is not None:
+      self.rpc_val(topic+".data.active", UINT8_T, int(set))
+    else:
+      # TODO: Obtain from dstream info instead of checking with RPC
+      return bool(self.rpc_val(topic+".data.active", UINT8_T))
+
+  def streamCompile(self):
+    self.columns = []
+    self.columnsByName = {}
+    column = 0
+    rowBytes = 0
+    rowPack = "<"
+    if self.timebases == [] or len(self.pstreams) == 0:
+      return
+    if self.dstreamInfo is not None:
+      period_us = self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_period_us'] \
+                * self.dstreamInfo['dstream_period']
+    for stream in self.streams:
+      pstreamInfo = self.pstreamInfoFromID(stream['stream_pstream_id'])
+      if pstreamInfo == {}:
+        return
+      stream.update( pstreamInfo )
+      stream['stream_column_start'] = column
+      stream['stream_period_us'] = period_us * stream['stream_period']
+      stream['stream_Fs'] = 1e6/stream['stream_period_us']
+      self.pstreams[stream['pstream_name']]['Fs'] = stream['stream_Fs']
+
+      self.columnsByName[ stream['pstream_name'] ] = stream
+
+      for i in range(stream['pstream_channels']):
+        column += 1
+        columnName = stream['pstream_name']
+        if len(stream['pstream_column_names']) > 1:
+          columnName += "."+stream['pstream_column_names'][i]
+        self.columns += [ columnName ] 
+        rowBytes += stream['pstream_dtype_bytes']
+        rowPack  += stream['pstream_dtype_pack']
+
+      self.rowunpackByBytes[rowBytes] = rowPack
+
+      if self.verbose:
+        print(f"stream columns {stream['stream_column_start']}-"+
+              f"{stream['stream_column_start']+stream['pstream_channels']-1}: "+
+              f"{stream['pstream_name']} "+
+              f"@ {stream['stream_Fs']} Hz")
+    if self.verbose:
+      print(f"stream columns: {self.columns}")
+
+
+  def dstream_read_raw(self, rows = 1, duration=None):
+    data = []
+    while True:
+      parsedPacket = self.pub_queue.get()
+      if parsedPacket['type'] == TL_PTYPE_STREAM0:
+        packet_bytes = int(len(parsedPacket['rawdata']))
+        data += [struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )]
+        if len(data) == rows:
+          break
+    if rows == 1:
+      data = data[0]
+    return data
+
+  def dstream_read_topic_raw(self, topic, samples = 10):
+    streamInfo = self.columnsByName[topic]
+    column = streamInfo['stream_column_start']
+    channels = streamInfo['pstream_channels']
     data_flat = []
     while True:
-      parsedPacket = self.recv()
-      if parsedPacket['type'] == dstreamInfo['payload_type']:
-        packet_samples = int(len(parsedPacket['rawdata']) / dstreamInfo['dtype_bytes'])
-        data_flat += struct.unpack("<"+packet_samples*dstreamInfo['dtype_pack'], bytes(parsedPacket['rawdata']) )
+      parsedPacket = self.pub_queue.get()
+      if parsedPacket['type'] == TL_PTYPE_STREAM0:
+        packet_bytes = int(len(parsedPacket['rawdata']))
+        row = struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )
+        data_flat += row[column:column+channels]
         if int(len(data_flat)/channels) >= samples: 
           break
     data_flat = data_flat[:channels*samples] # truncate at specified point
@@ -318,28 +545,16 @@ class session(object):
       data = data[0]
     return data
 
-  def dstream_subscribe(self, topic):
-    dstreamInfo = self.dstreams[self.dstreamNames[topic]]
-    self.rpc_val('dstream.subscribe', UINT16_T, dstreamInfo['streamID'])
-
-  def dstream_unsubscribe(self, topic):
-    dstreamInfo = self.dstreams[self.dstreamNames[topic]]
-    self.rpc_val('dstream.unsubscribe', UINT16_T, dstreamInfo['streamID'])
-
-  def dstream(self, topic, samples = 1, duration = None, autoSubscribe = True):
-    if autoSubscribe:
-      self.dstream_subscribe(topic)
-    dstreamInfo = self.dstreams[self.dstreamNames[topic]]
+  def dstream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True):
+    if autoActivate:
+      wasActive = self.pstream_active(topic)
+      if not wasActive:
+        self.pstream_active(topic, True)
     if duration is not None:
-      samples = int(duration * dstreamInfo['Fs'])
-    data = self.dstream_samples(topic, samples)
-    if autoSubscribe:
-      self.dstream_unsubscribe(topic)
+      samples = int(duration * self.pstreams[topic]['Fs'])
+    data = self.dstream_read_topic_raw(topic, samples)
+    if autoActivate and not wasActive:
+      self.pstream_active(topic, False)
     return data
 
 
-if __name__ == "__main__":
-  vm4 = Device()
-  #vm4.dstream_enable('gmr.cal', True)
-  data = vm4.dstream('gmr.cal', duration = 0.1)
-  print(data)

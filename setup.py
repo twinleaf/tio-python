@@ -11,9 +11,12 @@ setup(name='tio',
     license='MIT',
     install_requires=[
         "PyYAML",
+        "pyserial",
+        "blessings",
     ],
     packages=[
         'tio',
+        'slip',
         'tldevice',
     ],
     scripts=[
