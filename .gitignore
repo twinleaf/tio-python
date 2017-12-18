@@ -1,4 +1,3 @@
-python/dist/
 Calibration*
 
 *.o
@@ -33,3 +32,4 @@ python/htmlcov/
 *.h5
 *.tsv
 *.pdf
+dist/

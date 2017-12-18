@@ -1,4 +1,4 @@
-#Twinleaf Sensor Control Software (Python)
+# Twinleaf Sensor Control Software (Python)
 
 This package implements a communications protocol in python to work with Twinleaf sensors using TIO as the communications layer. Data from the sensors is received via PUB messages and sensor parameters may be changed using REQ/REP messages. 
 
