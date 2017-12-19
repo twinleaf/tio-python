@@ -41,9 +41,11 @@ class TwinleafConfigController(object):
         value = self._dev._tio.rpc_val(function, rpcType=function_type)
         configuration[function] = value
     document = {
-      'Device': self._dev.dev.desc(), 
-      'Firmware': self._dev.dev.mcu_fw_rev(), 
+      'Name': self._dev.dev.name(),
+      'Revision': self._dev.dev.revision(),
+      'Serial': self._dev.dev.serial(),
       'ID': self._dev.dev.mcu_id(),
+      'Firmware': self._dev.dev.firmware.rev(), 
     }
     document['Configuration'] = configuration
     if filename:
@@ -64,19 +66,27 @@ class TwinleafConfigController(object):
     functions = self._enum()
     functionValues = self.download(filename = None)
 
-    mcu_fw_rev = self._dev.dev.mcu_fw_rev()
-    dev_desc = self._dev.dev.desc()
+    dev_name = self._dev.dev.name()
+    revision = self._dev.dev.revision()
+    serial = self._dev.dev.serial()
     mcu_id = self._dev.dev.mcu_id()
+    mcu_fw_rev = self._dev.dev.firmware.rev()
 
-    if document['Device'] != dev_desc:
-        print(dev_desc, document['Device'])
-        raise Exception(f"Device mismatch: device is '{dev_desc}'; file is '{document['Device']}'.")
+    if document['Name'] != dev_name:
+        print(dev_desc, document['Name'])
+        raise Exception(f"Device mismatch: device is '{dev_name}'; file is '{document['Name']}'.")
 
-    if document['Firmware'] != mcu_fw_rev:
-        print(f"Firmware mismatch: device is {mcu_fw_rev}; file is {document['Firmware']}")
+    if document['Revision'] != revision:
+        print(f"ID mismatch: device is {revision}; file is {document['Revision']}")
+
+    if document['Serial'] != serial:
+        print(f"ID mismatch: device is {serial}; file is {document['Serial']}")
 
     if document['ID'] != mcu_id:
         print(f"ID mismatch: device is {mcu_id}; file is {document['ID']}")
+
+    if document['Firmware'] != mcu_fw_rev:
+        print(f"Firmware mismatch: device is {mcu_fw_rev}; file is {document['Firmware']}")
 
     for function in document['Configuration'].keys():
         if function not in functionValues.keys():
