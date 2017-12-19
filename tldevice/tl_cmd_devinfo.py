@@ -45,17 +45,14 @@ class TwinleafDevInfoController(object):
   def name(self):
     return self._dev._tio.rpc('dev.name').decode('utf-8')
 
-  def id(self):
-    return self._dev._tio.rpc_val('dev.id', rpcType = tio.UINT16_T)
-
-  def version_major(self):
-    return self._dev._tio.rpc_val('dev.version_major', rpcType = tio.UINT16_T)
-
-  def version_minor(self):
-    return self._dev._tio.rpc_val('dev.version_minor', rpcType = tio.UINT16_T)
-
   def desc(self):
     return self._dev._tio.rpc('dev.desc').decode('utf-8')
+
+  def serial(self):
+    return self._dev._tio.rpc('dev.serial').decode('utf-8')
+
+  def revision(self):
+    return self._dev._tio.rpc_val('dev.revision', rpcType = tio.UINT16_T)
 
   def uid(self):
     return self._dev._tio.rpc('dev.uid').hex()
