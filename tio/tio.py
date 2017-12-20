@@ -399,10 +399,7 @@ class session(object):
     return requestID
 
   def recv_rep(self, requestID = None):
-    try:
-      parsedPacket = self.rep_queue.get(timeout=1)
-    except queue.Empty:
-      raise TimeoutError("No REP received.")
+    parsedPacket = self.rep_queue.get(timeout=1)
     if requestID is None or requestID == parsedPacket['requestid']:
       if parsedPacket['type'] == TL_PTYPE_RPC_ERROR:
         raise TLRPCException( TL_RPC_ERRORS[parsedPacket['error']] )
@@ -415,8 +412,12 @@ class session(object):
     requestID = self.send_req(topic, payload)
     try: 
       return self.recv_rep(requestID)
-    except TLRPCException as rpc_error:
-      self.logger.error(f"RPC ERROR {topic}: {rpc_error}" )
+    except TLRPCException as e:
+      self.logger.error(f"RPC ERROR {topic}: {e}" )
+      raise
+    except queue.Empty as e:
+      self.logger.error(f"RPC TIMEOUT {topic}: {e}" )
+      raise
 
   def rpc_val(self, topic = "data.pstream.list", rpcType = FLOAT32_T, value = None, returnRaw = False):
     if value is not None:
