@@ -93,17 +93,32 @@ def monitor(dev):
   signal.signal(signal.SIGINT, setExit)
   signal.signal(signal.SIGTERM, setExit)
 
-  sys.stdout.write(f"{dev._longname} {dev.dev.version_major()}.{dev.dev.version_minor()} FW {dev.dev.firmware.rev()[:8]} MCU ID7 {dev.dev.mcu_id()[-7:]}")
+  sys.stdout.write(f"{dev._longname} FW {dev.dev.firmware.rev()[:8]} ID {dev.dev.mcu_id()[-7:]}")
 
-  for row in dev.data.dstream_iter(): # This should block
+  for row in dev.data.stream_iter(): # This should block
     ui.update(row)
 
 if __name__ == "__main__":
-    # Running this script will attempt to connect to an attached vector magnetometer
-    # It expects you to be tumbling the magnetometer for the specified duration
-    
-    import tldevice
-    vm = tldevice.Device("tcp://localhost")
-    monitor(vm)
+  # Running this script will attempt to connect to an attached vector magnetometer
+  # It expects you to be tumbling the magnetometer for the specified duration
+  import tldevice
+  import argparse
+
+  parser = argparse.ArgumentParser(prog='tio_monitor', 
+                                   description='Live Twinleaf I/O Data Stream Monitor.')
+
+  parser.add_argument("url", 
+                      nargs='?', 
+                      default='tcp://localhost/',
+                      help='URL: tcp://localhost')
+  parser.add_argument("--cmd", 
+                      action='append', 
+                      default=[],
+                      type=lambda kv: kv.split(":"), 
+                      help='Commands to be run on start; rpc:val')
+  args = parser.parse_args()
+
+  device = tldevice.Device(url=args.url, commands=args.cmd)
+  monitor(device)
 
 

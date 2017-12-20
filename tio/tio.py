@@ -115,6 +115,7 @@ class session(object):
     else:
       self.buffer = bytearray()
       self.serial = serial.serial_for_url(url, baudrate=115200, timeout=1)
+      self.serial.reset_input_buffer()
 
     # Initialize queues and threading controls
     self.pub_queue = queue.Queue(maxsize=100)
@@ -398,7 +399,10 @@ class session(object):
     return requestID
 
   def recv_rep(self, requestID = None):
-    parsedPacket = self.rep_queue.get(timeout=1)
+    try:
+      parsedPacket = self.rep_queue.get(timeout=1)
+    except queue.Empty:
+      raise TimeoutError("No REP received.")
     if requestID is None or requestID == parsedPacket['requestid']:
       if parsedPacket['type'] == TL_PTYPE_RPC_ERROR:
         raise TLRPCException( TL_RPC_ERRORS[parsedPacket['error']] )
