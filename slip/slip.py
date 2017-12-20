@@ -20,6 +20,8 @@ class SLIPEncodingError(IOError):
     pass
 
 def decode(slipbuf):
+  if len(slipbuf) < 4:
+    raise SLIPEncodingError("Packet too short")
   msg = bytearray()
   rx_esc_next = False
   for byte in slipbuf:

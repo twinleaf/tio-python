@@ -14,11 +14,12 @@ import threading
 import struct
 import random
 import urllib.parse
-import signal # Timeout; NB: not OK for multithreaded applications
 import time
 import math
 import queue
 import slip
+import hexdump
+import logging
 
 TL_PTYPE_NONE       = 0
 TL_PTYPE_INVALID    = 0
@@ -92,7 +93,14 @@ class TLRPCException(Exception):
     pass
 
 class session(object):
-  def __init__(self, url="tcp://localhost", verbose = False, commands=[]):
+  def __init__(self, url="tcp://localhost", verbose=False, commands=[]):
+
+    if verbose:
+      logLevel = logging.DEBUG
+    else:
+      logLevel = logging.ERROR
+    logging.basicConfig(level=logLevel)
+    self.logger = logging.getLogger('tio')
 
     # Connect to either TCP socket or serial port
     self.uri = urllib.parse.urlparse(url)
@@ -109,18 +117,18 @@ class session(object):
       self.serial = serial.serial_for_url(url, baudrate=115200, timeout=1)
 
     # Initialize queues and threading controls
-    self.pub_queue = queue.Queue(maxsize=1000)
+    self.pub_queue = queue.Queue(maxsize=100)
     self.req_queue = queue.Queue(maxsize=1)
     self.rep_queue = queue.Queue(maxsize=1)
     self.lock = threading.Lock()
     self.alive = True
 
     # Launch socket management thread
-    self.socket_recv_thread = threading.Thread(target=self._recv_thread)
+    self.socket_recv_thread = threading.Thread(target=self.recv_thread)
     self.socket_recv_thread.daemon = True
     self.socket_recv_thread.name = 'recv-thread'
     self.socket_recv_thread.start()
-    self.socket_send_thread = threading.Thread(target=self._send_thread)
+    self.socket_send_thread = threading.Thread(target=self.send_thread)
     self.socket_send_thread.daemon = True
     self.socket_send_thread.name = 'send-thread'
     self.socket_send_thread.start()
@@ -135,11 +143,6 @@ class session(object):
     self.columns = []
     self.columnsByName = {}
     self.rowunpackByBytes = {}
-    self.verbose = verbose
-
-    # Timeout
-    self.timeout = 2 # seconds
-    signal.signal(signal.SIGALRM, self._soft_timeout_handler)
 
     # Startup commands
     for command, payload in commands:
@@ -150,11 +153,11 @@ class session(object):
     # TODO: Caching!
     self.rpcList()
     self.data_send_all()
-    #print(f"Found {len(self.rpcs)} RPCs and {len(self.pstreams)} data streams")
+    #self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.pstreams)} data streams")
 
-  def _recv_thread(self):
+  def recv_thread(self):
     while True:
-      packet = self._recv()
+      packet = self.recv()
       if packet['type'] == TL_PTYPE_STREAM0:
         try:
           self.pub_queue.put(packet, block=False)
@@ -165,25 +168,20 @@ class session(object):
         try:
           self.rep_queue.put(packet, block=False)
         except queue.Full:
-          self.pub_queue.get() # Toss a packet
-          self.pub_queue.put(packet, block=False)
-          print("Tossing an unclaimed REP!")
+          self.rep_queue.get() # Toss a packet
+          self.rep_queue.put(packet, block=False)
+          self.logger.error("Tossing an unclaimed REP!")
 
-  def _send_thread(self):
+  def send_thread(self):
     while True:
       # Blocks
-      self._send(self.req_queue.get())
+      self.send(self.req_queue.get())
 
-  def _soft_timeout_handler(self, signum, frame):
-    raise TimeoutError()
-
-  def flush(self):
-    signal.alarm(self.timeout)
+  def pub_flush(self):
     while not self.pub_queue.empty():
       try:
-        self.pub_queue.get()
+        self.pub_queue.get(block=False)
       except:
-        signal.alarm(0)
         break
 
   def recv_tcp_packet(self):
@@ -191,6 +189,9 @@ class session(object):
       header = bytes(self.socket.recv(4))
     except BlockingIOError:
       return b''
+    if len(header) != 4:
+      raise IOError("Lost connection")
+      #TODO: reconnect
     headerFields = struct.unpack("<BBH", header )
     payloadType, routingSize, payloadSize = headerFields
     if payloadSize > TL_PACKET_MAX_SIZE or routingSize>TL_PACKET_MAX_ROUTING_SIZE:
@@ -205,27 +206,42 @@ class session(object):
         data = self.serial.read(self.serial.in_waiting or 1)
       except serial.SerialException as e:
         # probably some I/O problem such as disconnected USB serial
-        print(f"serial error: {e}")
+        self.logger.error(f"serial error: {e}")
         return b""
       else:
         if data:
           self.buffer.extend(data)
           while slip.SLIP_END_CHAR in self.buffer:
             packet, self.buffer = self.buffer.split(slip.SLIP_END_CHAR, 1)
-            return slip.decode(packet)
+            try:
+              return slip.decode(packet)
+            except slip.SLIPEncodingError as error:
+              self.logger.debug(error);
+              #hexdump.hexdump(packet)
+              #self.logger.exception(error)
+              return b""
+              
 
-  def _send(self, packet):
+  def send(self, packet):
     if self.uri.scheme == "tcp":
       self.socket.send(packet)
     else:
       self.serial.write(slip.encode(packet))
 
-  def _recv(self):
+  def recv(self):
     if self.uri.scheme == "tcp":
       packet = self.recv_tcp_packet()
     else:
       packet = self.recv_slip_packet()
+    try:
+      return self.decode_packet(packet)
+    except Exception as error:
+      self.logger.debug('Error decoding packet:');
+      hexdump.hexdump(packet)
+      self.logger.exception(error)
+      return { 'type':TL_PTYPE_INVALID }
 
+  def decode_packet(self, packet):
     if len(packet)<4:
       return { 'type':TL_PTYPE_NONE }
 
@@ -244,22 +260,19 @@ class session(object):
       data = payload[4:]
       parsedPacket['sampleNumber'] = sampleNumber
       parsedPacket['rawdata'] = data
-      if self.verbose:
-        print(f"Data stream #{payloadType}, Sample #{sampleNumber}")
+      #self.logger.debug(f"Data stream #{payloadType}, Sample #{sampleNumber}")
 
     elif payloadType == TL_PTYPE_LOG: # Log message
       logMessage = payload.decode('utf-8')
       parsedPacket['message'] = logMessage
-      if self.verbose:
-        print("LOG: " + logMessage)
+      self.logger.info("LOG: " + logMessage)
 
     elif payloadType == TL_PTYPE_RPC_REP: # Got reply
       requestID = struct.unpack("<H", bytes(payload[:2]) )[0]
       replyPayload = payload[2:]
       parsedPacket['requestid'] = requestID
       parsedPacket['payload'] = replyPayload
-      if self.verbose:
-        print(f"REP (ID 0x{requestID:04x}): {replyPayload}")
+      self.logger.debug(f"REP (ID 0x{requestID:04x}): {replyPayload}")
 
     elif payloadType == TL_PTYPE_RPC_ERROR: # Got reply error
       requestID, errorCode = struct.unpack("<HH", bytes(payload[:4]) )
@@ -267,8 +280,7 @@ class session(object):
       parsedPacket['requestid'] = requestID
       parsedPacket['error'] = errorCode
       parsedPacket['payload'] = errorPayload
-      if self.verbose:
-        print(f"REP (ID 0x{requestID:04x}) Error {errorCode} ")
+      self.logger.debug(f"REP (ID 0x{requestID:04x}) Error {errorCode} ")
 
     elif payloadType == TL_PTYPE_TIMEBASE:
       timebaseDescription = struct.unpack("<HBBQLLLfBBBBBBBBBBBBBBBB", bytes(payload[:44]) )
@@ -294,8 +306,7 @@ class session(object):
       
       self.timebases += [parsedPacket]
     
-      if self.verbose:
-        print(f"timebase {parsedPacket['timebase_id']}: "+
+      self.logger.debug(f"timebase {parsedPacket['timebase_id']}: "+
               f"{parsedPacket['timebase_Fs']} Hz")
       streamDescription = struct.unpack("<HHLLIHHB", bytes(payload[:21]) )
       parsedPacket['pstream_id']         = int(streamDescription[0])
@@ -335,9 +346,8 @@ class session(object):
       self.streamCompile()
       
       self.pstreams[parsedPacket['pstream_name']] = parsedPacket
-      if self.verbose:
-        print(f"pstream {parsedPacket['pstream_id']}:",payload[21:])
-        print(f"pstream {parsedPacket['pstream_id']}: {parsedPacket['pstream_name']} {parsedPacket['pstream_title']} ({parsedPacket['pstream_units']})")
+      self.logger.debug(f"pstream {parsedPacket['pstream_id']}: {description}")
+      self.logger.debug(f"pstream {parsedPacket['pstream_id']}: {parsedPacket['pstream_name']} {parsedPacket['pstream_title']} ({parsedPacket['pstream_units']})")
 
     elif payloadType == TL_PTYPE_DSTREAM: # Got dstream description
       streamDescription = struct.unpack("<HHLLQHH", bytes(payload[:24]) )
@@ -349,29 +359,26 @@ class session(object):
       parsedPacket['dstream_total_components'] = int(streamDescription[5])
       parsedPacket['dstream_flags']            = int(streamDescription[6])
 
-      if self.verbose:
-        print(f"dstream {parsedPacket['dstream_id']}: timebase {parsedPacket['dstream_timebase_id']}, pstreams {parsedPacket['dstream_total_components']}")
+      self.logger.debug(f"dstream {parsedPacket['dstream_id']}: timebase {parsedPacket['dstream_timebase_id']}, pstreams {parsedPacket['dstream_total_components']}")
 
       if parsedPacket['dstream_id'] == 0: # Only support dstream 0
         self.dstreamInfo = parsedPacket
+        if len(payload)>24:
+          self.streams = []
+          for i, stream in enumerate(range(self.dstreamInfo['dstream_total_components'])):
+            streamDescription = struct.unpack("<HHLL", bytes(payload[24+stream*12:24+(stream+1)*12]) )
+            streamInfo = {}
+            streamInfo['stream_pstream_id']    = int(streamDescription[0])
+            streamInfo['stream_flags']         = int(streamDescription[1])
+            streamInfo['stream_period']        = int(streamDescription[2])
+            streamInfo['stream_offset']        = int(streamDescription[3])
+            self.streams += [streamInfo]
+            self.logger.debug(f"dstream {parsedPacket['dstream_id']} component {i}: pstream {streamInfo['stream_pstream_id']}, period {streamInfo['stream_period']}")
 
-        self.streams = []
-        for i, stream in enumerate(range(self.dstreamInfo['dstream_total_components'])):
-          streamDescription = struct.unpack("<HHLL", bytes(payload[24+stream*12:24+(stream+1)*12]) )
-          streamInfo = {}
-          streamInfo['stream_pstream_id']    = int(streamDescription[0])
-          streamInfo['stream_flags']         = int(streamDescription[1])
-          streamInfo['stream_period']        = int(streamDescription[2])
-          streamInfo['stream_offset']        = int(streamDescription[3])
-          self.streams += [streamInfo]
-          if self.verbose:
-            print(f"dstream {parsedPacket['dstream_id']} component {i}: pstream {streamInfo['stream_pstream_id']}, period {streamInfo['stream_period']}")
-
-        self.streamCompile()
+          self.streamCompile()
 
     else:
-      if self.verbose:
-        print("ERROR: Unknown packet type")
+      self.logger.error("ERROR: Unknown packet type")
 
     return parsedPacket
 
@@ -387,12 +394,11 @@ class session(object):
     header = struct.pack("<BBH", TL_PTYPE_RPC_REQ, 0, len(msg) )
     msg = header + msg
     self.req_queue.put(msg)
-    if self.verbose:
-      print(f"REQ (ID 0x{requestID:04x}): {topic.decode('utf-8')}({payload})")
+    self.logger.debug(f"REQ (ID 0x{requestID:04x}): {topic.decode('utf-8')}({payload})")
     return requestID
 
   def recv_rep(self, requestID = None):
-    parsedPacket = self.rep_queue.get(timeout=self.timeout)
+    parsedPacket = self.rep_queue.get(timeout=1)
     if requestID is None or requestID == parsedPacket['requestid']:
       if parsedPacket['type'] == TL_PTYPE_RPC_ERROR:
         raise TLRPCException( TL_RPC_ERRORS[parsedPacket['error']] )
@@ -401,13 +407,12 @@ class session(object):
       else:
         return parsedPacket['payload']
 
-  def rpc(self, topic = "dev.desc", payload = None, flush=True):
-    self.flush()
+  def rpc(self, topic = "dev.desc", payload = None):
     requestID = self.send_req(topic, payload)
     try: 
       return self.recv_rep(requestID)
     except TLRPCException as rpc_error:
-      print( f"RPC ERROR {topic}: {rpc_error}" )
+      self.logger.error(f"RPC ERROR {topic}: {rpc_error}" )
 
   def rpc_val(self, topic = "data.pstream.list", rpcType = FLOAT32_T, value = None, returnRaw = False):
     if value is not None:
@@ -448,7 +453,7 @@ class session(object):
         "valid":rpcMetadataValid, 
         "stored":rpcStored
       }]
-      #print(f"{rpcNumber}: {rpcName}, {rpcType}, {rpcReadable}, {rpcWritable}, {rpcMetadataValid}")
+      #self.logger.info(f"{rpcNumber}: {rpcName}, {rpcType}, {rpcReadable}, {rpcWritable}, {rpcMetadataValid}")
     #self.rpcs.sort(key=lambda x:x['name'])
     return self.rpcs
 
@@ -465,8 +470,8 @@ class session(object):
     if set is not None:
       self.rpc_val(topic+".data.active", UINT8_T, int(set))
     else:
-      # TODO: Obtain from dstream info instead of checking with RPC
-      return bool(self.rpc_val(topic+".data.active", UINT8_T))
+      #return bool(self.rpc_val(topic+".data.active", UINT8_T))
+      return topic in self.columnsByName.keys()
 
   def streamCompile(self):
     self.columns = []
@@ -502,16 +507,17 @@ class session(object):
 
       self.rowunpackByBytes[rowBytes] = rowPack
 
-      if self.verbose:
-        print(f"stream columns {stream['stream_column_start']}-"+
-              f"{stream['stream_column_start']+stream['pstream_channels']-1}: "+
-              f"{stream['pstream_name']} "+
-              f"@ {stream['stream_Fs']} Hz")
-    if self.verbose:
-      print(f"stream columns: {self.columns}")
+      self.logger.debug(
+        f"stream columns {stream['stream_column_start']}-"+
+        f"{stream['stream_column_start']+stream['pstream_channels']-1}: "+
+        f"{stream['pstream_name']} "+
+        f"@ {stream['stream_Fs']} Hz")
+    self.logger.debug(f"stream columns: {self.columns}")
 
 
-  def dstream_read_raw(self, rows = 1, duration=None):
+  def dstream_read_raw(self, rows = 1, duration=None, flush=True):
+    if flush:
+      self.pub_flush()
     data = []
     while True:
       parsedPacket = self.pub_queue.get()
@@ -545,13 +551,15 @@ class session(object):
       data = data[0]
     return data
 
-  def dstream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True):
+  def dstream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, flush=True):
     if autoActivate:
       wasActive = self.pstream_active(topic)
       if not wasActive:
         self.pstream_active(topic, True)
     if duration is not None:
       samples = int(duration * self.pstreams[topic]['Fs'])
+    if flush:
+      self.pub_flush()
     data = self.dstream_read_topic_raw(topic, samples)
     if autoActivate and not wasActive:
       self.pstream_active(topic, False)

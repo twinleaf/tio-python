@@ -15,6 +15,7 @@ setup(name='tio',
         "PyYAML",
         "pyserial",
         "blessings",
+        "hexdump",
     ],
     packages=[
         'tio',
