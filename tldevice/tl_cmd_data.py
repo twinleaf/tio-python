@@ -10,9 +10,9 @@ import tio
 class TwinleafDataController(object):
   def __init__(self, dev):
     self._dev = dev
-    self.dstream = self._dev._tio.dstream_read_raw
+    self.stream = self._dev._tio.dstream_read_raw
 
-  def dstream_iter(self, number=0):
+  def stream_iter(self, number=0):
     if number==0:
       while True:
         yield self._dev._tio.dstream_read_raw(rows = 1, duration=None)
