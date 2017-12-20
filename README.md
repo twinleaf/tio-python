@@ -1,6 +1,6 @@
 # Python Twinleaf I/O
 
-This package implements a communications protocol in python to work with Twinleaf sensors using Twinleaf I/O (TIO) as the communications layer. Data from the sensors is received via PUB messages and sensor parameters may be changed using REQ/REP messages. 
+This package implements a communications protocol in python to work with [Twinleaf sensors](http://www.twinleaf.com) using Twinleaf I/O (TIO) as the communications layer. Data from the sensors is received via PUB messages and sensor parameters may be changed using REQ/REP messages. 
 
 ![itio](doc/tio_monitor.gif)
 
@@ -9,14 +9,14 @@ This package implements a communications protocol in python to work with Twinlea
 [Python](https://www.python.org/downloads/) >= 3.6 is required.
 
   - Windows may use the [python.org installer](https://www.python.org/downloads/)
-  - macOS may consider installing with homebrew: `brew install python3`
+  - macOS may consider installing with [Homebrew](https://brew.sh): `brew install python3`
   - linux use your native package manager; debian/ubuntu: `sudo apt-get install python3`.
 
-On macOS, the devices' serial port enumerates as `/dev/cu.usbserial-xxxxxx`. On Linux it would be `/dev/ttyUSBx`.
+The interactive prompt is a lot better if ipython is available (`pip3 install ipython`).
 
 ## Installation
 
-`tio-python` is uploaded to pypi.org and can be installed/upgraded using `pip`:
+`tio-python` is uploaded to [PyPI](https://pypi.org) and can be installed/upgraded using `pip`:
 
   - Windows Command Prompt `> py -m pip install tio --upgrade`
   - macOS/linux `$pip3 install tio --upgrade`
@@ -44,7 +44,7 @@ csb = tldevice.Device('COM1')
 csb.coil.x.current(0.25) # mA
 ```
 
-To receive data streams from a sensor, it is possible to use the named streams such as vmr.gmr(duration=1) to get one second of data. To get all the data at once, use the iterator at vmr.data.stream_iter(). A simple logging program for the VMR vector magnetometer would look like this:
+To receive data streams from a sensor such as the [Twinleaf VMR vector magnetometer](http://www.twinleaf.com/vector/VMR), it is possible to use the named streams such as vmr.gmr(duration=1) to get one second of data. To get the data from all the streams synchronously, use the iterator at vmr.data.stream_iter(). A simple logging program for the VMR vector magnetometer would look like this:
 
 ```
 import tldevice
