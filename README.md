@@ -28,7 +28,7 @@ Windows users who can't run python might need to [add python to their path](http
 Two example scripts are installed with this package:
 
   - itio: A interactive session for configuring devices
-  - tio_monitor: A live graph of streamed data
+  - tio_monitor: A live graph of streamed data (does not work on windows)
 
 These examples can be called with "url" that is either a serial port (`/dev/cu.usbserialXXXXXX`, `/dev/ttyUSBx`, `COMx`) or a net url such as `tcp://localhost`. 
 
