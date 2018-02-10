@@ -305,13 +305,14 @@ class session(object):
          parsedPacket['timebase_period_us'] = math.nan
          parsedPacket['timebase_Fs'] = math.nan
       
-      self.timebases += [parsedPacket]
+      if len(self.timebases) < parsedPacket['timebase_id']:
+        self.timebases[parsedPacket['timebase_id']] = parsedPacket
+      elif len(self.timebases) == parsedPacket['timebase_id']:
+        self.timebases += [parsedPacket]
     
       self.logger.debug(f"timebase {parsedPacket['timebase_id']}: "+
               f"{parsedPacket['timebase_Fs']} Hz")
-      streamDescription = struct.unpack("<HHLLIHHB", bytes(payload[:21]) )
-      parsedPacket['pstream_id']         = int(streamDescription[0])
-      
+
       self.streamCompile()
 
     elif payloadType == TL_PTYPE_PSTREAM: # Got pstream description
