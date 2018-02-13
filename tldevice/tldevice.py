@@ -26,7 +26,8 @@ class Device():
   def _interact(self):
     imported_objects = locals()
     imported_objects[self._shortname] = self
-    banner = f"{self._longname} REPL"
+    #banner = f"{self._longname} REPL"
+    banner=""
     exit_msg = f"{self._shortname} thanks you."
     try:
       from IPython import embed

@@ -25,6 +25,7 @@ class TermPlotter(object):
 
   def __init__(self, columns):
     self.term = blessings.Terminal()
+    sys.stdout.write(self.term.move_up) # cover up connecting message from tio...
     self.columns = columns
     self.ranges = [(0,0)] * len(self.columns)
     self.counts = [0] * len(columns)
@@ -74,7 +75,7 @@ class TermPlotter(object):
       barwidth = self.term.width - ( self.nameWidth + 27)
       barString = self.bar(datum, i, width=barwidth)
 
-      sys.stdout.write(f"\r\n{self.term.clear_eol}{self.columns[i]:{self.nameWidth}s} {spinner} {rateString} {barString} {datum:.4g}")
+      sys.stdout.write(f"\r\n{self.term.clear_eol}{self.columns[i]:{self.nameWidth}s} {datum:10.4g} {spinner} {rateString} {barString}")
 
     if len(row) == len(self.columns): # Clean up rest of screen
       sys.stdout.write(self.term.clear_eos)

@@ -93,7 +93,7 @@ class TLRPCException(Exception):
     pass
 
 class session(object):
-  def __init__(self, url="tcp://localhost", verbose=False, commands=[]):
+  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, commands=[]):
 
     if verbose:
       logLevel = logging.DEBUG
@@ -149,6 +149,11 @@ class session(object):
     for command, payload in commands:
       self.rpc(command, payload.encode('utf-8') )
       #time.sleep(0.1)
+
+    # Do a quick first name check
+    desc = self.rpc('dev.desc').decode('utf-8')
+    if connectingMessage:
+      print(f"{desc}")
 
     # Query rpcs and dstreams
     # TODO: Caching!
