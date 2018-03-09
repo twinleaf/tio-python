@@ -163,7 +163,15 @@ class session(object):
 
   def recv_thread(self):
     while True:
-      packet = self.recv()
+      try:
+        packet = self.recv()
+      except IOError as e:
+        # for now, just exit, TODO: reconnect?
+        # probably some I/O problem such as disconnected USB serial
+        print("\x1Bc") # fix up after interactive python crash
+        self.logger.error(f"Error: {e}")
+        import os
+        os._exit(0)
       if packet['type'] == TL_PTYPE_STREAM0:
         try:
           self.pub_queue.put(packet, block=False)
@@ -197,7 +205,6 @@ class session(object):
       return b''
     if len(header) != 4:
       raise IOError("Lost connection")
-      #TODO: reconnect
     headerFields = struct.unpack("<BBH", header )
     payloadType, routingSize, payloadSize = headerFields
     if payloadSize > TL_PACKET_MAX_SIZE or routingSize>TL_PACKET_MAX_ROUTING_SIZE:
@@ -211,9 +218,7 @@ class session(object):
         # read all that is there or wait for one byte (blocking)
         data = self.serial.read(self.serial.in_waiting or 1)
       except serial.SerialException as e:
-        # probably some I/O problem such as disconnected USB serial
-        self.logger.error(f"serial error: {e}")
-        return b""
+        raise IOError(f"serial error: {e}")
       else:
         if data:
           self.buffer.extend(data)
@@ -226,7 +231,6 @@ class session(object):
               #hexdump.hexdump(packet)
               #self.logger.exception(error)
               return b""
-              
 
   def send(self, packet):
     if self.uri.scheme == "tcp":
