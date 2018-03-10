@@ -29,7 +29,7 @@ TL_PTYPE_RPC_REP    = 3 # RPC reply
 TL_PTYPE_RPC_ERROR  = 4 # RPC error
 TL_PTYPE_HEARTBEAT  = 5 # NOP heartbeat
 TL_PTYPE_TIMEBASE   = 6 # Update to a timebase's parameters
-TL_PTYPE_PSTREAM    = 7 # Update to a pstream's parameters
+TL_PTYPE_SOURCE    = 7 # Update to a source's parameters
 TL_PTYPE_DSTREAM    = 8 # Update to a dstream's parameters
 TL_PTYPE_USER       = 64
 TL_PTYPE_STREAM0    = 128
@@ -138,7 +138,7 @@ class session(object):
     self.rpcs = []
     self.rpcNames = {}
     self.timebases = []
-    self.pstreams = {}
+    self.sources = {}
     self.dstreamInfo = None
     self.streams = []
     self.columns = []
@@ -159,7 +159,7 @@ class session(object):
     # TODO: Caching!
     self.rpcList()
     self.data_send_all()
-    #self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.pstreams)} data streams")
+    self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.sources)} data sources")
 
   def recv_thread(self):
     while True:
@@ -324,41 +324,41 @@ class session(object):
 
       self.streamCompile()
 
-    elif payloadType == TL_PTYPE_PSTREAM: # Got pstream description
+    elif payloadType == TL_PTYPE_SOURCE: # Got source description
       streamDescription = struct.unpack("<HHLLIHHB", bytes(payload[:21]) )
-      parsedPacket['pstream_id']         = int(streamDescription[0])
-      parsedPacket['pstream_timebase_id']= int(streamDescription[1])
-      parsedPacket['pstream_period']     = int(streamDescription[2])
-      parsedPacket['pstream_offset']     = int(streamDescription[3])
-      parsedPacket['pstream_fmt']        = int(streamDescription[4])
-      parsedPacket['pstream_flags']      = int(streamDescription[5])
-      parsedPacket['pstream_channels']   = int(streamDescription[6])
-      parsedPacket['pstream_type']       = int(streamDescription[7])
+      parsedPacket['source_id']         = int(streamDescription[0])
+      parsedPacket['source_timebase_id']= int(streamDescription[1])
+      parsedPacket['source_period']     = int(streamDescription[2])
+      parsedPacket['source_offset']     = int(streamDescription[3])
+      parsedPacket['source_fmt']        = int(streamDescription[4])
+      parsedPacket['source_flags']      = int(streamDescription[5])
+      parsedPacket['source_channels']   = int(streamDescription[6])
+      parsedPacket['source_type']       = int(streamDescription[7])
       description                        = payload[21:].decode('utf-8').split("\t")
-      parsedPacket['pstream_name'] = description[0]
-      parsedPacket['pstream_column_names'] = [""]
-      parsedPacket['pstream_title'] = ""
-      parsedPacket['pstream_units'] = ""
-      parsedPacket['pstream_other_desc'] = ""
+      parsedPacket['source_name'] = description[0]
+      parsedPacket['source_column_names'] = [""]
+      parsedPacket['source_title'] = ""
+      parsedPacket['source_units'] = ""
+      parsedPacket['source_other_desc'] = ""
       if len(description) >= 2:
-        parsedPacket['pstream_column_names'] = description[1].split(",")
+        parsedPacket['source_column_names'] = description[1].split(",")
       if len(description) >= 3:
-        parsedPacket['pstream_title'] = description[2]
+        parsedPacket['source_title'] = description[2]
       if len(description) >= 4:
-        parsedPacket['pstream_units'] = description[3]
+        parsedPacket['source_units'] = description[3]
       if len(description) >= 5:
-        parsedPacket['pstream_other_desc'] = description[4:]
+        parsedPacket['source_other_desc'] = description[4:]
 
       # Derived values
-      parsedPacket['pstream_dtype']      = TYPES[parsedPacket['pstream_type']][1]
-      parsedPacket['pstream_dtype_pack'] = TYPES[parsedPacket['pstream_type']][0]
-      parsedPacket['pstream_dtype_bytes']= TYPES[parsedPacket['pstream_type']][2]
+      parsedPacket['source_dtype']      = TYPES[parsedPacket['source_type']][1]
+      parsedPacket['source_dtype_pack'] = TYPES[parsedPacket['source_type']][0]
+      parsedPacket['source_dtype_bytes']= TYPES[parsedPacket['source_type']][2]
       
       self.streamCompile()
       
-      self.pstreams[parsedPacket['pstream_name']] = parsedPacket
-      self.logger.debug(f"pstream {parsedPacket['pstream_id']}: {description}")
-      self.logger.debug(f"pstream {parsedPacket['pstream_id']}: {parsedPacket['pstream_name']} {parsedPacket['pstream_title']} ({parsedPacket['pstream_units']})")
+      self.sources[parsedPacket['source_name']] = parsedPacket
+      self.logger.debug(f"source {parsedPacket['source_id']}: {description}")
+      self.logger.debug(f"source {parsedPacket['source_id']}: {parsedPacket['source_name']} {parsedPacket['source_title']} ({parsedPacket['source_units']})")
 
     elif payloadType == TL_PTYPE_DSTREAM: # Got dstream description
       streamDescription = struct.unpack("<HHLLQHH", bytes(payload[:24]) )
@@ -370,7 +370,7 @@ class session(object):
       parsedPacket['dstream_total_components'] = int(streamDescription[5])
       parsedPacket['dstream_flags']            = int(streamDescription[6])
 
-      self.logger.debug(f"dstream {parsedPacket['dstream_id']}: timebase {parsedPacket['dstream_timebase_id']}, pstreams {parsedPacket['dstream_total_components']}")
+      self.logger.debug(f"dstream {parsedPacket['dstream_id']}: timebase {parsedPacket['dstream_timebase_id']}, sources {parsedPacket['dstream_total_components']}")
 
       if parsedPacket['dstream_id'] == 0: # Only support dstream 0
         self.dstreamInfo = parsedPacket
@@ -379,12 +379,12 @@ class session(object):
           for i, stream in enumerate(range(self.dstreamInfo['dstream_total_components'])):
             streamDescription = struct.unpack("<HHLL", bytes(payload[24+stream*12:24+(stream+1)*12]) )
             streamInfo = {}
-            streamInfo['stream_pstream_id']    = int(streamDescription[0])
+            streamInfo['stream_source_id']    = int(streamDescription[0])
             streamInfo['stream_flags']         = int(streamDescription[1])
             streamInfo['stream_period']        = int(streamDescription[2])
             streamInfo['stream_offset']        = int(streamDescription[3])
             self.streams += [streamInfo]
-            self.logger.debug(f"dstream {parsedPacket['dstream_id']} component {i}: pstream {streamInfo['stream_pstream_id']}, period {streamInfo['stream_period']}")
+            self.logger.debug(f"dstream {parsedPacket['dstream_id']} component {i}: source {streamInfo['stream_source_id']}, period {streamInfo['stream_period']}")
 
           self.streamCompile()
 
@@ -429,7 +429,7 @@ class session(object):
       self.logger.error(f"RPC TIMEOUT {topic}: {e}" )
       raise
 
-  def rpc_val(self, topic = "data.pstream.list", rpcType = FLOAT32_T, value = None, returnRaw = False):
+  def rpc_val(self, topic = "data.source.list", rpcType = FLOAT32_T, value = None, returnRaw = False):
     if value is not None:
       reqPayload = struct.pack("<"+TYPES[rpcType][0], value)
     else:
@@ -475,13 +475,13 @@ class session(object):
   def data_send_all(self):
     self.rpc("data.send_all")
 
-  def pstreamInfoFromID(self, id):
-    for pstream in self.pstreams.values():
-      if pstream['pstream_id'] == id:
-        return pstream
+  def sourceInfoFromID(self, id):
+    for source in self.sources.values():
+      if source['source_id'] == id:
+        return source
     return {} # Not found
 
-  def pstream_active(self, topic, set=None):
+  def source_active(self, topic, set=None):
     if set is not None:
       self.rpc_val(topic+".data.active", UINT8_T, int(set))
     else:
@@ -494,38 +494,38 @@ class session(object):
     column = 0
     rowBytes = 0
     rowPack = "<"
-    if self.timebases == [] or len(self.pstreams) == 0:
+    if self.timebases == [] or len(self.sources) == 0:
       return
     if self.dstreamInfo is not None:
       period_us = self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_period_us'] \
                 * self.dstreamInfo['dstream_period']
     for stream in self.streams:
-      pstreamInfo = self.pstreamInfoFromID(stream['stream_pstream_id'])
-      if pstreamInfo == {}:
+      sourceInfo = self.sourceInfoFromID(stream['stream_source_id'])
+      if sourceInfo == {}:
         return
-      stream.update( pstreamInfo )
+      stream.update( sourceInfo )
       stream['stream_column_start'] = column
       stream['stream_period_us'] = period_us * stream['stream_period']
       stream['stream_Fs'] = 1e6/stream['stream_period_us']
-      self.pstreams[stream['pstream_name']]['Fs'] = stream['stream_Fs']
+      self.sources[stream['source_name']]['Fs'] = stream['stream_Fs']
 
-      self.columnsByName[ stream['pstream_name'] ] = stream
+      self.columnsByName[ stream['source_name'] ] = stream
 
-      for i in range(stream['pstream_channels']):
+      for i in range(stream['source_channels']):
         column += 1
-        columnName = stream['pstream_name']
-        if len(stream['pstream_column_names']) > 1:
-          columnName += "."+stream['pstream_column_names'][i]
+        columnName = stream['source_name']
+        if len(stream['source_column_names']) > 1:
+          columnName += "."+stream['source_column_names'][i]
         self.columns += [ columnName ] 
-        rowBytes += stream['pstream_dtype_bytes']
-        rowPack  += stream['pstream_dtype_pack']
+        rowBytes += stream['source_dtype_bytes']
+        rowPack  += stream['source_dtype_pack']
 
       self.rowunpackByBytes[rowBytes] = rowPack
 
       self.logger.debug(
         f"stream columns {stream['stream_column_start']}-"+
-        f"{stream['stream_column_start']+stream['pstream_channels']-1}: "+
-        f"{stream['pstream_name']} "+
+        f"{stream['stream_column_start']+stream['source_channels']-1}: "+
+        f"{stream['source_name']} "+
         f"@ {stream['stream_Fs']} Hz")
     self.logger.debug(f"stream columns: {self.columns}")
 
@@ -548,7 +548,7 @@ class session(object):
   def dstream_read_topic_raw(self, topic, samples = 10):
     streamInfo = self.columnsByName[topic]
     column = streamInfo['stream_column_start']
-    channels = streamInfo['pstream_channels']
+    channels = streamInfo['source_channels']
     data_flat = []
     while True:
       parsedPacket = self.pub_queue.get()
@@ -568,16 +568,16 @@ class session(object):
 
   def dstream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, flush=True):
     if autoActivate:
-      wasActive = self.pstream_active(topic)
+      wasActive = self.source_active(topic)
       if not wasActive:
-        self.pstream_active(topic, True)
+        self.source_active(topic, True)
     if duration is not None:
-      samples = int(duration * self.pstreams[topic]['Fs'])
+      samples = int(duration * self.sources[topic]['Fs'])
     if flush:
       self.pub_flush()
     data = self.dstream_read_topic_raw(topic, samples)
     if autoActivate and not wasActive:
-      self.pstream_active(topic, False)
+      self.source_active(topic, False)
     return data
 
 

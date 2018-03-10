@@ -16,9 +16,9 @@ class Device():
   def __init__(self, url="tcp://localhost", verbose=False, commands=[]):
     self._tio = tio.session(url, verbose=verbose, commands=commands)
     self.dev = TwinleafDevInfoController(self)
-    self._add_pstreams()
+    self._add_sources()
     self._add_rpcs()
-    if self._tio.pstreams != {}:
+    if self._tio.sources != {}:
       self.data = TwinleafDataController(self)
     self._longname = self.dev.desc()
     self._shortname = self.dev.name().lower()
@@ -78,33 +78,33 @@ class Device():
       if rpc['valid']:
         self._add_rpc_path(path=rpc['name'], rpcType=rpc['datatype'], callWithValue=rpc['w'])
 
-  def _add_pstream_method(parent, parentClass=None, name="test", pstreamName=""):
+  def _add_source_method(parent, parentClass=None, name="test", sourceName=""):
     def __init__(self):
       self._tio = parent._tio
-      self._pstreamName = pstreamName
+      self._sourceName = sourceName
     def __call__(self, samples=1, duration=None, flush=True):
-      return self._tio.dstream_read_topic(self._pstreamName, samples, duration, flush)
+      return self._tio.dstream_read_topic(self._sourceName, samples, duration, flush)
     #def rate(self):
-    #  return self._tio_pstream_rate(self._dstreamName)
-    if pstreamName is not "":
+    #  return self._tio_source_rate(self._dstreamName)
+    if sourceName is not "":
       cls = type(name,(), {'__init__':__init__, '__call__':__call__}) #, 'rate':rate
     else:
       cls = type(name,(), {'__init__':__init__})
     clsInstance = cls()
     setattr(parentClass, name, clsInstance)
 
-  def _add_pstream_path(self, path="that.stream"):
+  def _add_source_path(self, path="that.stream"):
     parts = path.split('.')
     parent = self
     for part in parts[:-1]:
       if part not in vars(parent).keys():
-        self._add_pstream_method(parentClass=parent, name=part)
+        self._add_source_method(parentClass=parent, name=part)
       parent = parent.__dict__[part]
-    self._add_pstream_method(parentClass=parent, name=parts[-1], pstreamName=path)
+    self._add_source_method(parentClass=parent, name=parts[-1], sourceName=path)
 
-  def _add_pstreams(self):
-    for pstream in self._tio.pstreams.values():
-      self._add_pstream_path(path=pstream['pstream_name'])
+  def _add_sources(self):
+    for source in self._tio.sources.values():
+      self._add_source_path(path=source['source_name'])
 
 if __name__ == "__main__":
   device = Device()
