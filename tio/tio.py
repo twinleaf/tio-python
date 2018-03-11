@@ -168,7 +168,7 @@ class session(object):
       except IOError as e:
         # for now, just exit, TODO: reconnect?
         # probably some I/O problem such as disconnected USB serial
-        print("\x1Bc") # fix up after interactive python crash
+        print("\x1Bc") # fix up after interactive python crash, TODO
         self.logger.error(f"Error: {e}")
         import os
         os._exit(0)
