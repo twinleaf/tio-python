@@ -298,10 +298,10 @@ class session(object):
       parsedPacket['timebase_source']          = int(timebaseDescription[1])
       parsedPacket['timebase_epoch']           = int(timebaseDescription[2])
       parsedPacket['timebase_start_time']      = int(timebaseDescription[3])
-      parsedPacket['timebase_flags']           = int(timebaseDescription[4])
-      parsedPacket['timebase_period_num_us']   = int(timebaseDescription[5])
-      parsedPacket['timebase_period_denom_us'] = int(timebaseDescription[6])
-      parsedPacket['timebase_stability_ppb']   = float(timebaseDescription[7])
+      parsedPacket['timebase_period_num_us']   = int(timebaseDescription[4])
+      parsedPacket['timebase_period_denom_us'] = int(timebaseDescription[5])
+      parsedPacket['timebase_flags']           = int(timebaseDescription[6])
+      parsedPacket['timebase_stability_ppb']   = float(timebaseDescription[7])*1e9
       parsedPacket['timebase_src_params']      = timebaseDescription[8:8+16]
 
       # Derive period
