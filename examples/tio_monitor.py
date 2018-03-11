@@ -72,7 +72,7 @@ class TermPlotter(object):
         measuredRate = (self.counts[i]-1)/(time.time()-self.startTimes[i])
       rateString = "%5.1f Hz"% measuredRate
 
-      barwidth = self.term.width - ( self.nameWidth + 27)
+      barwidth = self.term.width - ( self.nameWidth + 28)
       barString = self.bar(datum, i, width=barwidth)
 
       sys.stdout.write(f"\r\n{self.term.clear_eol}{self.columns[i]:{self.nameWidth}s} {datum:10.4g} {spinner} {rateString} {barString}")
