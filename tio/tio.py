@@ -109,7 +109,7 @@ class session(object):
         port = 7855
       else:
         port = self.uri.port
-      self.routing = [ int(address) for address in self.uri.path.split('/')[1:] ]
+      routingStrings = self.uri.path.split('/')[1:]
       self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       self.socket.connect((self.uri.hostname, port))
       self.socket.settimeout(0) # Non-blocking mode
@@ -120,16 +120,26 @@ class session(object):
       # mac: /dev/cu.usbmodem1421/0/1
       # windows: COM1/0/1
       spliturl = url.split('/')
-      if spliturl[1].lower()=='dev': # *nix
-        url = '/'.join(spliturl[:3])
-        self.routing = [ int(address) for address in spliturl[3:] ]
-      if spliturl[0].upper().startswith('COM'): # Windows
-        url = spliturl[0]
-        self.routing = [ int(address) for address in spliturl[1:] ]
+      try:
+        if spliturl[0].upper().startswith('COM'): # Windows
+          url = spliturl[0]
+          routingStrings = spliturl[1:]
+        elif spliturl[1].lower()=='dev': # *nix
+          url = '/'.join(spliturl[:3])
+          routingStrings = spliturl[3:]
+        else:
+          raise
+      except:
+        raise Exception("Unknown url format.")
       self.buffer = bytearray()
       self.serial = serial.serial_for_url(url, baudrate=115200, timeout=1)
       self.serial.reset_input_buffer()
 
+    routingStrings = filter(lambda a: a != '', routingStrings)
+    try:
+      self.routing = [ int(address) for address in routingStrings ]
+    except:
+      raise Exception(f'Bad routing path: {routingString}')
     self.routingBytes = bytearray(self.routing)
 
     # Initialize queues and threading controls
