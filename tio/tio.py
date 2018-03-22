@@ -109,13 +109,28 @@ class session(object):
         port = 7855
       else:
         port = self.uri.port
+      self.routing = [ int(address) for address in self.uri.path.split('/')[1:] ]
       self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       self.socket.connect((self.uri.hostname, port))
       self.socket.settimeout(0) # Non-blocking mode
     else:
+      # Try treating as serial
+      # Deal with non-standard url for routing
+      # linux: /dev/tty0/0/1
+      # mac: /dev/cu.usbmodem1421/0/1
+      # windows: COM1/0/1
+      spliturl = url.split('/')
+      if spliturl[1].lower()=='dev': # *nix
+        url = '/'.join(spliturl[:3])
+        self.routing = [ int(address) for address in spliturl[3:] ]
+      if spliturl[0].upper().startswith('COM'): # Windows
+        url = spliturl[0]
+        self.routing = [ int(address) for address in spliturl[1:] ]
       self.buffer = bytearray()
       self.serial = serial.serial_for_url(url, baudrate=115200, timeout=1)
       self.serial.reset_input_buffer()
+
+    self.routingBytes = bytearray(self.routing)
 
     # Initialize queues and threading controls
     self.pub_queue = queue.Queue(maxsize=100)
@@ -173,18 +188,25 @@ class session(object):
         import os
         os._exit(0)
       if packet['type'] == TL_PTYPE_STREAM0:
-        try:
-          self.pub_queue.put(packet, block=False)
-        except queue.Full:
-          self.pub_queue.get() # Toss a packet
-          self.pub_queue.put(packet, block=False)
+        if self.routing == packet['routing']:
+          try:
+            self.pub_queue.put(packet, block=False)
+          except queue.Full:
+            self.pub_queue.get() # Toss a packet
+            self.pub_queue.put(packet, block=False)
+          # except queue.Empty:
+          #   self.logger.error(f"No response. Timeout.")
+          #   import os
+          #   os._exit(0)
       elif packet['type'] == TL_PTYPE_RPC_REP or packet['type'] == TL_PTYPE_RPC_ERROR:
-        try:
-          self.rep_queue.put(packet, block=False)
-        except queue.Full:
-          self.rep_queue.get() # Toss a packet
-          self.rep_queue.put(packet, block=False)
-          self.logger.error("Tossing an unclaimed REP!")
+        if self.routing == packet['routing']:
+          try:
+            self.rep_queue.put(packet, block=False)
+          except queue.Full:
+            self.rep_queue.get() # Toss a packet
+            self.rep_queue.put(packet, block=False)
+            self.logger.error("Tossing an unclaimed REP!")
+
 
   def send_thread(self):
     while True:
@@ -264,6 +286,14 @@ class session(object):
       return { 'type':TL_PTYPE_INVALID }
 
     parsedPacket = { 'type':payloadType }
+
+    # Strip routing
+    if routingSize > 0:
+      routingBytes = payload[-routingSize:] 
+      payload = payload[:-routingSize]
+      parsedPacket['routing'] = list(routingBytes)
+    else:
+      parsedPacket['routing'] = []
 
     if payloadType == TL_PTYPE_STREAM0: # Data stream 0
       sampleNumber = struct.unpack("<I", bytes(payload[0:4]) )[0]
@@ -402,8 +432,8 @@ class session(object):
     msg = requestHeader + topic
     if payload is not None:
       msg += payload
-    header = struct.pack("<BBH", TL_PTYPE_RPC_REQ, 0, len(msg) )
-    msg = header + msg
+    header = struct.pack("<BBH", TL_PTYPE_RPC_REQ, len(self.routingBytes), len(msg) )
+    msg = header + msg + self.routingBytes
     self.req_queue.put(msg)
     self.logger.debug(f"REQ (ID 0x{requestID:04x}): {topic.decode('utf-8')}({payload})")
     return requestID
