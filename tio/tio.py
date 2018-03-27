@@ -268,6 +268,7 @@ class session(object):
     if self.uri.scheme == "tcp":
       self.socket.send(packet)
     else:
+      #hexdump.hexdump(slip.encode(packet))
       self.serial.write(slip.encode(packet))
 
   def recv(self):
