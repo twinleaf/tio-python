@@ -621,4 +621,9 @@ class session(object):
       self.source_active(topic, False)
     return data
 
+  def pub_warn_overload(self):
+    if self._dev._tio.pub_queue.qsize() > .9*self._dev._tio.pub_queue.qsize():
+      self.logger.warning("PUB overload")
+
+
 

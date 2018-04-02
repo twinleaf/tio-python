@@ -18,6 +18,7 @@ class TwinleafDataController(object):
   def stream_iter(self, number=0):
     if number==0:
       while True:
+        self._dev.warnOverload()
         yield self._dev._tio.dstream_read_raw(rows = 1, duration=None)
     else:
       for x in range(number):
