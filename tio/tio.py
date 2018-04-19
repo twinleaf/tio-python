@@ -429,6 +429,9 @@ class session(object):
 
           self.streamCompile()
 
+    elif payloadType == TL_PTYPE_HEARTBEAT:
+      return parsedPacket
+
     else:
       self.logger.error("ERROR: Unknown packet type")
 
