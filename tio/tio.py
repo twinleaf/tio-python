@@ -622,7 +622,7 @@ class session(object):
     return data
 
   def pub_warn_overload(self):
-    if self._dev._tio.pub_queue.qsize() > .9*self._dev._tio.pub_queue.qsize():
+    if self.pub_queue.qsize() > .9*self.pub_queue.qsize():
       self.logger.warning("PUB overload")
 
 
