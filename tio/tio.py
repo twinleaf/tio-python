@@ -186,6 +186,9 @@ class session(object):
     self.data_send_all()
     self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.sources)} data sources")
 
+  def close(self):
+    # TODO: Notify threads to quit
+
   def recv_thread(self):
     while True:
       try:
@@ -193,7 +196,7 @@ class session(object):
       except IOError as e:
         # for now, just exit, TODO: reconnect?
         # probably some I/O problem such as disconnected USB serial
-        print("\x1Bc") # fix up after interactive python crash, TODO
+        #print("\x1Bc") # fix up after interactive python crash, TODO
         self.logger.error(f"Error: {e}")
         import os
         os._exit(0)
