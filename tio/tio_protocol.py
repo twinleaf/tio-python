@@ -132,6 +132,11 @@ class TIOProtocol(object):
       parsedPacket['sampleNumber'] = sampleNumber
       parsedPacket['rawdata'] = data
       #self.logger.debug(f"Data stream #{payloadType}, Sample #{sampleNumber}")
+      #Track sample number
+      try:
+        self.timebases[self.dstreamInfo['dstream_timebase_id']]
+      except:
+        pass
 
     elif payloadType == TL_PTYPE_LOG: # Log message
       logMessage = payload.decode('utf-8')
@@ -323,3 +328,18 @@ class TIOProtocol(object):
     data = struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )
     return data
 
+  def dstream_timed_data(self, parsedPacket):
+    packet_bytes = int(len(parsedPacket['rawdata']))
+    if packet_bytes not in self.rowunpackByBytes.keys():
+      self.logger.debug(f"No source information for packet")
+      return []
+    data = struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )
+
+    try:
+      period = 1e-6*self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_period_us']
+      sample_time = 0 # self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_start_time']
+      sample_time += period * (parsedPacket['sampleNumber'] )
+    except:
+      sample_time = math.nan
+
+    return (sample_time,)+data
