@@ -14,11 +14,11 @@ import types
 
 class Device():
   def __init__(self, url="tcp://localhost", verbose=False, commands=[]):
-    self._tio = tio.session(url, verbose=verbose, commands=commands)
+    self._tio = tio.TIOSession(url, verbose=verbose, commands=commands)
     self.dev = TwinleafDevInfoController(self)
     self._add_sources()
     self._add_rpcs()
-    if self._tio.sources != {}:
+    if self._tio.protocol.sources != {}:
       self.data = TwinleafDataController(self)
     self._longname = self.dev.desc()
     self._shortname = self.dev.name().lower()
@@ -103,7 +103,7 @@ class Device():
     self._add_source_method(parentClass=parent, name=parts[-1], sourceName=path)
 
   def _add_sources(self):
-    for source in self._tio.sources.values():
+    for source in self._tio.protocol.sources.values():
       self._add_source_path(path=source['source_name'])
 
 if __name__ == "__main__":

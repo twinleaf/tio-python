@@ -13,7 +13,7 @@ class TwinleafDataController(object):
     self.stream = self._dev._tio.dstream_read_raw
 
   def stream_columns(self):
-    return self._dev._tio.columns
+    return self._dev._tio.protocol.columns
 
   def stream_iter(self, number=0):
     if number==0:
