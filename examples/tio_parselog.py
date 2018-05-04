@@ -22,7 +22,7 @@ parser.add_argument("logfile",
                     nargs='?', 
                     default='Log 000000.tio',
                     help='filename like "Log 000000.tio"')
-parser.add_argument("output", 
+parser.add_argument("outfile", 
                     nargs='?', 
                     default='log.tsv',
                     help='Log filename: log.tsv')
@@ -41,36 +41,36 @@ sensors=[]
 for routing in range(4):
   sensors += [ tio.TIOProtocol(verbose = False, routing=[routing]) ]
 
-
 with open(args.logfile,'rb') as f:
-  while True:
-    header = bytes(f.read(4))
-    if len(header) < 4:
-      break
+  with open(args.outfile, 'w') as fout:
+    while True:
+      header = bytes(f.read(4))
+      if len(header) < 4:
+        break
 
-    headerFields = struct.unpack("<BBH", header )
-    payloadType, routingSize, payloadSize = headerFields
-    if payloadSize > tio.TL_PACKET_MAX_SIZE or routingSize > tio.TL_PACKET_MAX_ROUTING_SIZE:
-      logger.debug('Packet too big');
-      hexdump.hexdump(packet)
-    else:
-      payload = bytes(f.read(payloadSize+routingSize))
-      packet = header+payload
-      if routingSize > 0:
-        routingBytes = payload[-routingSize:] 
-      routing = int(routingBytes[0])
-
-      try:
-        parsedPacket = sensors[routing].decode_packet(packet)
-      except Exception as error:
-        logger.debug('Error decoding packet:');
+      headerFields = struct.unpack("<BBH", header )
+      payloadType, routingSize, payloadSize = headerFields
+      if payloadSize > tio.TL_PACKET_MAX_SIZE or routingSize > tio.TL_PACKET_MAX_ROUTING_SIZE:
+        logger.debug('Packet too big');
         hexdump.hexdump(packet)
-        logger.exception(error)
+      else:
+        payload = bytes(f.read(payloadSize+routingSize))
+        packet = header+payload
+        if routingSize > 0:
+          routingBytes = payload[-routingSize:] 
+        routing = int(routingBytes[0])
 
-      print(parsedPacket)
+        try:
+          parsedPacket = sensors[routing].decode_packet(packet)
+        except Exception as error:
+          logger.debug('Error decoding packet:');
+          hexdump.hexdump(packet)
+          logger.exception(error)
 
-      if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
-        row = sensors[routing].dstream_data(parsedPacket)
-        print(row)
+        #print(parsedPacket)
 
-    time.sleep(0.25)
+        if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
+          row = sensors[routing].dstream_data(parsedPacket)
+          rowstring = "\t".join(map(str,row))+"\n"
+          fout.write(rowstring)
+
