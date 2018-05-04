@@ -93,7 +93,7 @@ class TIOProtocol(object):
     logging.basicConfig(level=logLevel)
     self.logger = logging.getLogger('tio-protocol')
 
-    self.timebases = []
+    self.timebases = {}
     self.sources = {}
     self.dstreamInfo = None
     self.streams = []
@@ -107,7 +107,6 @@ class TIOProtocol(object):
 
     # Parse header
     header = packet[0:4]
-    payload = packet[4:]
     headerFields = struct.unpack("<BBH", header )
     payloadType, routingSize, payloadSize = headerFields
     if payloadSize > TL_PACKET_MAX_SIZE or routingSize>TL_PACKET_MAX_ROUTING_SIZE:
@@ -117,14 +116,15 @@ class TIOProtocol(object):
 
     # Strip routing
     if routingSize > 0:
-      routingBytes = payload[-routingSize:] 
-      payload = payload[:-routingSize]
+      routingBytes = packet[-routingSize:] 
       parsedPacket['routing'] = list(routingBytes)
     else:
       parsedPacket['routing'] = []
 
     if list(self.routingBytes) != parsedPacket['routing']:
       return { 'type':TL_PTYPE_OTHER_ROUTING } # Toss packet if it's wrong routing
+
+    payload = packet[4:-routingSize]
 
     if payloadType == TL_PTYPE_STREAM0: # Data stream 0
       sampleNumber = struct.unpack("<I", bytes(payload[0:4]) )[0]
@@ -175,10 +175,7 @@ class TIOProtocol(object):
          parsedPacket['timebase_period_us'] = math.nan
          parsedPacket['timebase_Fs'] = math.nan
       
-      if len(self.timebases) < parsedPacket['timebase_id']:
-        self.timebases[parsedPacket['timebase_id']] = parsedPacket
-      elif len(self.timebases) == parsedPacket['timebase_id']:
-        self.timebases += [parsedPacket]
+      self.timebases[parsedPacket['timebase_id']] = parsedPacket
     
       self.logger.debug(f"timebase {parsedPacket['timebase_id']}: "+
               f"{parsedPacket['timebase_Fs']} Hz")
@@ -269,7 +266,7 @@ class TIOProtocol(object):
     column = 0
     rowBytes = 0
     rowPack = "<"
-    if self.timebases == [] or len(self.sources) == 0:
+    if self.timebases == {} or len(self.sources) == 0:
       return
     if self.dstreamInfo is not None:
       period_us = self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_period_us'] \
