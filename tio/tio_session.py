@@ -205,6 +205,7 @@ class TIOSession(object):
     else:
       packet = self.recv_slip_packet()
     try:
+      # Filter routing here? TODO
       return self.protocol.decode_packet(packet)
     except Exception as error:
       self.logger.debug('Error decoding packet:');

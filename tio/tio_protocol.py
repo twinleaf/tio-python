@@ -124,7 +124,7 @@ class TIOProtocol(object):
     if list(self.routingBytes) != parsedPacket['routing']:
       return { 'type':TL_PTYPE_OTHER_ROUTING } # Toss packet if it's wrong routing
 
-    payload = packet[4:-routingSize]
+    payload = packet[4:len(packet)-routingSize]
 
     if payloadType == TL_PTYPE_STREAM0: # Data stream 0
       sampleNumber = struct.unpack("<I", bytes(payload[0:4]) )[0]
