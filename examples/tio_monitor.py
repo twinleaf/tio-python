@@ -86,7 +86,7 @@ class TermPlotter(object):
     print(self.term.move_down*(len(self.columns)))
 
 def monitor(dev):
-  ui = TermPlotter(dev._tio.columns)
+  ui = TermPlotter(dev._tio.protocol.columns)
 
   def setExit(signal, frame):
     ui.finish()
