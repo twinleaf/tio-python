@@ -36,10 +36,11 @@ if verbose: # Quiet
 logging.basicConfig(level=logLevel)
 logger = logging.getLogger('tio-logfile')
 
+# Start by allocating simple routing for four sensors attached to a single hub
+sensors=[]
+for routing in range(4):
+  sensors += [ tio.TIOProtocol(verbose = False, routing=[routing]) ]
 
-routing =[0]
-
-protocol = tio.TIOProtocol(verbose = False, routing=[0])
 
 with open(args.logfile,'rb') as f:
   while True:
@@ -55,15 +56,21 @@ with open(args.logfile,'rb') as f:
     else:
       payload = bytes(f.read(payloadSize+routingSize))
       packet = header+payload
+      if routingSize > 0:
+        routingBytes = payload[-routingSize:] 
+      routing = int(routingBytes[0])
 
       try:
-        parsedPacket = protocol.decode_packet(packet)
+        parsedPacket = sensors[routing].decode_packet(packet)
       except Exception as error:
         logger.debug('Error decoding packet:');
         hexdump.hexdump(packet)
         logger.exception(error)
+
       print(parsedPacket)
+
       if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
-        row = protocol.dstream_data(parsedPacket)
-        #print(row)
+        row = sensors[routing].dstream_data(parsedPacket)
+        print(row)
+
     time.sleep(0.25)
