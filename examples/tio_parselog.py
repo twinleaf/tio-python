@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ..
-    Copyright: 2017 Twinleaf LLC
+    Copyright: 2018 Twinleaf LLC
     Author: kornack@twinleaf.com
 
 Parse native format logged data.
@@ -29,10 +29,18 @@ parser.add_argument('-v',
                     action="store_true",
                     default=False,
                     help='Verbose output for debugging')
+parser.add_argument('-vp', 
+                    action="store_true",
+                    default=False,
+                    help='Extra verbose protocol output for debugging')
 parser.add_argument('--raw', 
                     action="store_true",
                     default=False,
                     help='Display output for each line')
+parser.add_argument('--lines', 
+                    action="store",
+                    default=None,
+                    help='Limit number of packets to process')
 args = parser.parse_args()
 
 logLevel = logging.ERROR
@@ -47,18 +55,18 @@ else:
   outputfile = args.logfile+".tsv"
 
 # Start by allocating simple routing for four sensors attached to a single hub
-sensors=[]
-tempfilenames = []
-tempfiles = []
-for routing in range(4):
-  sensors += [ tio.TIOProtocol(verbose = False, routing=[routing]) ]
-  tempfilename = outputfile[:-4]+f"-{routing}.tsv"
-  tempfilenames += [ tempfilename ]
-  fd = open(tempfilename, 'w')
-  tempfiles += [ fd ]
+routes=[]
+sensors={}
+tempfilenames = {}
+tempfiles = {}
 
+lines = 0
 with open(args.logfile,'rb') as f:
   while True:
+    lines += 1
+    if args.lines is not None:
+      if lines > int(args.lines):
+        break
     header = bytes(f.read(4))
     if len(header) < 4:
       break
@@ -67,16 +75,20 @@ with open(args.logfile,'rb') as f:
     payloadType, routingSize, payloadSize = headerFields
     if payloadSize > tio.TL_PACKET_MAX_SIZE or routingSize > tio.TL_PACKET_MAX_ROUTING_SIZE:
       logger.error('Packet too big');
-      break
+      raise
     else:
       payload = bytes(f.read(payloadSize+routingSize))
       packet = header+payload
       if routingSize > 0:
         routingBytes = payload[-routingSize:] 
-      routing = int(routingBytes[0])
+      if routingBytes not in routes:
+        routes += [routingBytes]
+        sensors[routingBytes] = tio.TIOProtocol(verbose = args.vp, routing=list(routingBytes))
+        tempfilenames[routingBytes] = outputfile[:-4]+f"-{routingBytes}.tsv"
+        tempfiles[routingBytes] = open(tempfilenames[routingBytes], 'w')
 
       try:
-        parsedPacket = sensors[routing].decode_packet(packet)
+        parsedPacket = sensors[routingBytes].decode_packet(packet)
       except Exception as error:
         logger.debug('Error decoding packet:');
         hexdump.hexdump(packet)
@@ -86,37 +98,39 @@ with open(args.logfile,'rb') as f:
         print(parsedPacket)
 
       if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
-        row = sensors[routing].dstream_timed_data(parsedPacket)
+        row = sensors[routingBytes].dstream_timed_data(parsedPacket)
         if row !=[]:
           rowsamples = len(row)
           rowstring = "\t".join(map(str,row))
           # Add blanks to pack out when absent data
-          rowstring += "\t"*(len(sensors[routing].columns)+1-rowsamples) # +1 for time column
+          rowstring += "\t"*(len(sensors[routingBytes].columns)+1-rowsamples) # +1 for time column
           rowstring += "\n"
           #print(rowstring)
-          tempfiles[routing].write(rowstring)
+          tempfiles[routingBytes].write(rowstring)
 
-for fd in tempfiles:
+for fd in tempfiles.values():
   fd.close()
 
 # Now write out combined file
-tempfiles = []
-for routing in range(4):
-  fd = open(tempfilenames[routing], 'r')
-  tempfiles += [ fd ]
+tempfilelist = []
+for routingBytes in routes:
+  print(tempfilenames)
+  print(routingBytes)
+  fd = open(tempfilenames[routingBytes], 'r')
+  tempfilelist += [ fd ]
 
 with open(outputfile,'w') as fout:
   headerstring=""
-  for sensor in sensors:
-    routingstring="/".join(map(str,list(sensor.routingBytes)))+"/"
-    if len(sensor.columns)>0:
-      for column in ["time"]+sensor.columns:
+  for routingBytes in routes:
+    routingstring="/".join(map(str,list(routingBytes)))+"/"
+    if len(sensors[routingBytes].columns)>0:
+      for column in ["time"]+sensors[routingBytes].columns:
         headerstring+= routingstring+column+"\t"
   fout.write(headerstring[:-1]+"\n")
 
   while True:
     line = ""
-    for fd in tempfiles:
+    for fd in tempfilelist:
       linesegment = fd.readline()
       if linesegment != "":
         line += linesegment[:-1]+"\t"
@@ -126,8 +140,8 @@ with open(outputfile,'w') as fout:
     fout.write(line)
 
 # close and delete temporary files
-for fd in tempfiles:
+for fd in tempfilelist:
   fd.close()
-for tempfile in tempfilenames:
+for tempfile in tempfilenames.values():
   os.remove(tempfile)
 
