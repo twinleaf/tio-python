@@ -16,6 +16,7 @@ import hexdump
 import logging
 import struct
 import time
+import os
 
 parser = argparse.ArgumentParser(prog='tio_logfile', 
                                  description='Unpack raw TIO log files (.tio format).')
@@ -24,12 +25,18 @@ parser.add_argument("logfile",
                     nargs='?', 
                     default='Log 000000.tio',
                     help='Filename like "Log 000000.tio"')
+parser.add_argument('-v', 
+                    action="store_true",
+                    default=False,
+                    help='Verbose output for debugging')
+parser.add_argument('--raw', 
+                    action="store_true",
+                    default=False,
+                    help='Display output for each line')
 args = parser.parse_args()
 
-verbose = False
-
 logLevel = logging.ERROR
-if verbose: # Quiet
+if args.v:
   logLevel = logging.DEBUG
 logging.basicConfig(level=logLevel)
 logger = logging.getLogger('tio-logfile')
@@ -74,14 +81,20 @@ with open(args.logfile,'rb') as f:
         logger.debug('Error decoding packet:');
         hexdump.hexdump(packet)
         logger.exception(error)
-
-      #print(parsedPacket)
+      
+      if args.raw:
+        print(parsedPacket)
 
       if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
         row = sensors[routing].dstream_timed_data(parsedPacket)
-        rowstring = "\t".join(map(str,row))+"\n"
-        #print(rowstring)
-        tempfiles[routing].write(rowstring)
+        if row !=[]:
+          rowsamples = len(row)
+          rowstring = "\t".join(map(str,row))
+          # Add blanks to pack out when absent data
+          rowstring += "\t"*(len(sensors[routing].columns)+1-rowsamples) # +1 for time column
+          rowstring += "\n"
+          #print(rowstring)
+          tempfiles[routing].write(rowstring)
 
 for fd in tempfiles:
   fd.close()
@@ -93,16 +106,28 @@ for routing in range(4):
   tempfiles += [ fd ]
 
 with open(outputfile,'w') as fout:
+  headerstring=""
+  for sensor in sensors:
+    routingstring="/".join(map(str,list(sensor.routingBytes)))+"/"
+    if len(sensor.columns)>0:
+      for column in ["time"]+sensor.columns:
+        headerstring+= routingstring+column+"\t"
+  fout.write(headerstring[:-1]+"\n")
+
   while True:
     line = ""
     for fd in tempfiles:
       linesegment = fd.readline()
       if linesegment != "":
         line += linesegment[:-1]+"\t"
-    line+= "\n"
     if line == "":
       break
+    line = line[:-1]+"\n"
     fout.write(line)
 
-
 # close and delete temporary files
+for fd in tempfiles:
+  fd.close()
+for tempfile in tempfilenames:
+  os.remove(tempfile)
+
