@@ -341,8 +341,8 @@ class TIOSession(object):
     return data
 
   def pub_warn_overload(self):
-    if self.pub_queue.qsize() > .9*self.pub_queue.qsize():
-      self.logger.warning("PUB overload")
+    if self.pub_queue.qsize() > .95*self.pub_queue.maxsize:
+      self.logger.error("Python can't keep up with data rate. Please reduce data rate or use an alternative tool.")
 
 
 
