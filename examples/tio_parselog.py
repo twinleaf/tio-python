@@ -46,7 +46,6 @@ tempfiles = []
 for routing in range(4):
   sensors += [ tio.TIOProtocol(verbose = False, routing=[routing]) ]
   tempfilename = outputfile[:-4]+f"-{routing}.tsv"
-  print(tempfilename)
   tempfilenames += [ tempfilename ]
   fd = open(tempfilename, 'w')
   tempfiles += [ fd ]
@@ -60,8 +59,8 @@ with open(args.logfile,'rb') as f:
     headerFields = struct.unpack("<BBH", header )
     payloadType, routingSize, payloadSize = headerFields
     if payloadSize > tio.TL_PACKET_MAX_SIZE or routingSize > tio.TL_PACKET_MAX_ROUTING_SIZE:
-      logger.debug('Packet too big');
-      hexdump.hexdump(packet)
+      logger.error('Packet too big');
+      break
     else:
       payload = bytes(f.read(payloadSize+routingSize))
       packet = header+payload
@@ -84,7 +83,26 @@ with open(args.logfile,'rb') as f:
         #print(rowstring)
         tempfiles[routing].write(rowstring)
 
+for fd in tempfiles:
+  fd.close()
 
 # Now write out combined file
+tempfiles = []
+for routing in range(4):
+  fd = open(tempfilenames[routing], 'r')
+  tempfiles += [ fd ]
+
+with open(outputfile,'w') as fout:
+  while True:
+    line = ""
+    for fd in tempfiles:
+      linesegment = fd.readline()
+      if linesegment != "":
+        line += linesegment[:-1]+"\t"
+    line+= "\n"
+    if line == "":
+      break
+    fout.write(line)
+
 
 # close and delete temporary files
