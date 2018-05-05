@@ -40,6 +40,17 @@ Sadly, python is not the best choice for fast data processing. If the background
 
 At the moment, the native serial interface is significantly slower than the TCP version. As a result, we recommend that users use the TCP proxy program found in [tio-tools](https://github.com/twinleaf/tio-tools) to manage the serial port in C and convert the data into a TCP stream. The proxy has the added advantage that multiple clients can simultaneously connect to the sensor and use the data. 
 
+Terminal #1: serial proxy
+
+  $ bin/proxy /dev/ttyUSB0
+
+Terminal #2: your python program
+
+  $ itio.py
+  ...
+
+where the proxy serves to port 7855 and itio by default connects to that port on localhost. This also permits more interesting networking topologies and distributed signal anslysis possible.
+
 ## Programming
 
 The `tldevice` module performs metaprogramming to construct an object that has methods that match the RPC calls available on the device. It uses the `tio` module, a lower-level library for connecting and managing a communication session. To interact with a Twinleaf CSB current supply, a script would look like:
