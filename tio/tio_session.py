@@ -182,6 +182,9 @@ class TIOSession(object):
       else:
         if data:
           self.buffer.extend(data)
+          #print(len(self.buffer))
+          if len(self.buffer)>2000:
+            self.warn_overload()
           while slip.SLIP_END_CHAR in self.buffer:
             packet, self.buffer = self.buffer.split(slip.SLIP_END_CHAR, 1)
             try:
@@ -342,7 +345,14 @@ class TIOSession(object):
 
   def pub_warn_overload(self):
     if self.pub_queue.qsize() > .95*self.pub_queue.maxsize:
-      self.logger.error("Python can't keep up with data rate. Please reduce data rate or use an alternative tool.")
+      self.warn_overload()
+
+  def warn_overload(self):
+    self.logger.error("Sadly, python can't keep up with the data rate. Please reduce the data rate or use an alternative tool.")
+    import os
+    os._exit(0)
+
+
 
 
 
