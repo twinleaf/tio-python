@@ -1,8 +1,19 @@
 # Python Twinleaf I/O
 
-This package implements a communications protocol in python to work with [Twinleaf sensors](http://www.twinleaf.com) using Twinleaf I/O (TIO) as the communications layer. Data from the sensors is received via PUB messages and sensor parameters may be changed using REQ/REP messages. 
+This package implements a communications protocol in python to work with [Twinleaf sensors](http://www.twinleaf.com) using [Twinleaf I/O (TIO)](https://github.com/twinleaf/libtio/blob/master/doc/TIO%20Protocol%20Overview.md) as the communications layer. Data from the sensors is received via PUB messages and sensor parameters may be changed using REQ/REP messages. 
 
 ![itio](doc/tio_monitor.gif)
+
+## Use
+
+Two example scripts are installed with this package:
+
+  - itio: A interactive session for configuring devices
+  - tio_monitor: A live graph of streamed data (does not work on windows)
+
+These examples can be called with "url" that is either a serial port (`/dev/cu.usbserialXXXXXX`, `/dev/ttyUSBx`, `COMx`) or a net url such as `tcp://localhost`. 
+
+![itio](doc/itio.gif)
 
 ## Prerequisites
 
@@ -23,16 +34,11 @@ The interactive prompt is a lot better if ipython is available (`pip3 install ip
 
 Windows users who can't run python might need to [add python to their path](https://www.pythoncentral.io/add-python-to-path-python-is-not-recognized-as-an-internal-or-external-command/).
 
-## Use
+## Performance
 
-Two example scripts are installed with this package:
+Sadly, python is not the best choice for fast data processing. If the background thread ingesting the data does not keep up with the data rate, it exits with an error.
 
-  - itio: A interactive session for configuring devices
-  - tio_monitor: A live graph of streamed data (does not work on windows)
-
-These examples can be called with "url" that is either a serial port (`/dev/cu.usbserialXXXXXX`, `/dev/ttyUSBx`, `COMx`) or a net url such as `tcp://localhost`. 
-
-![itio](doc/itio.gif)
+At the moment, the native serial interface is significantly slower than the TCP version. As a result, we recommend that users use the TCP proxy program found in [tio-tools](https://github.com/twinleaf/tio-tools) to manage the serial port in C and convert the data into a TCP stream. The proxy has the added advantage that multiple clients can simultaneously connect to the sensor and use the data. 
 
 ## Programming
 
