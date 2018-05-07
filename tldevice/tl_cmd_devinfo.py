@@ -60,6 +60,9 @@ class TwinleafDevInfoController(object):
   def mcu_id(self):
     return self._dev._tio.rpc('dev.mcu.id').hex()
 
+  def session(self):
+    return self._dev._tio.rpc('dev.session').hex()
+
 
 
 # Test
@@ -75,6 +78,7 @@ csb.dev.version_minor()
 csb.dev.desc()
 csb.dev.uid()
 csb.dev.mcu_id()
+csb.dev.session()
 
 csb.dev.firmware.rev()
 csb.dev.firmware.tstamp()
