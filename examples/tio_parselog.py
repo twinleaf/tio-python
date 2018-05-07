@@ -59,6 +59,7 @@ routes=[]
 sensors={}
 tempfilenames = {}
 tempfiles = {}
+firsttimes = {}
 
 lines = 0
 with open(args.logfile,'rb') as f:
@@ -100,6 +101,8 @@ with open(args.logfile,'rb') as f:
       if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
         row = sensors[routingBytes].dstream_timed_data(parsedPacket)
         if row !=[]:
+          if routingBytes not in firsttimes.keys():
+            firsttimes[routingBytes] = row[0]
           rowsamples = len(row)
           rowstring = "\t".join(map(str,row))
           # Add blanks to pack out when absent data
@@ -111,11 +114,15 @@ with open(args.logfile,'rb') as f:
 for fd in tempfiles.values():
   fd.close()
 
+firsttime = max(firsttimes.values())
+if firsttime>0:
+  print(f"Lopping off data until {firsttime} seconds!")
+
 # Now write out combined file
 tempfilelist = []
 for routingBytes in routes:
-  print(tempfilenames)
-  print(routingBytes)
+  #print(tempfilenames)
+  #print(routingBytes)
   fd = open(tempfilenames[routingBytes], 'r')
   tempfilelist += [ fd ]
 
@@ -132,6 +139,13 @@ with open(outputfile,'w') as fout:
     line = ""
     for fd in tempfilelist:
       linesegment = fd.readline()
+      try:
+        time = float(linesegment.split('\t')[0])
+      except:
+        break
+      while time <= firsttime:
+        linesegment = fd.readline()
+        time = float(linesegment.split('\t')[0])
       if linesegment != "":
         line += linesegment[:-1]+"\t"
     if line == "":
