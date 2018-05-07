@@ -336,7 +336,7 @@ class TIOProtocol(object):
     data = struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )
 
     try:
-      period = 1e-6*self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_period_us']
+      period = 1e-6*self.streams[0]['stream_period_us']
       sample_time = 0 # self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_start_time']
       sample_time += period * (parsedPacket['sampleNumber'] )
     except:
