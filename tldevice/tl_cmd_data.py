@@ -15,7 +15,9 @@ class TwinleafDataController(object):
   def stream_columns(self):
     return self._dev._tio.protocol.columns
 
-  def stream_iter(self, number=0):
+  def stream_iter(self, number=0, flush=True):
+    if flush:
+      self._dev._tio.pub_flush()
     if number==0:
       while True:
         self._dev._tio.pub_warn_overload()
