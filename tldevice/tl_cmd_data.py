@@ -21,8 +21,9 @@ class TwinleafDataController(object):
     if number==0:
       while True:
         self._dev._tio.pub_warn_overload()
-        yield self._dev._tio.dstream_read_raw(rows = 1, duration=None)
+        yield self._dev._tio.dstream_read_raw(rows = 1, duration=None, flush=False)
     else:
       for x in range(number):
-        yield self._dev._tio.dstream_read_raw(rows = 1, duration=None)
+        self._dev._tio.pub_warn_overload()
+        yield self._dev._tio.dstream_read_raw(rows = 1, duration=None, flush=False)
 
