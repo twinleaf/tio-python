@@ -348,7 +348,8 @@ class TIOSession(object):
       self.warn_overload()
 
   def warn_overload(self):
-    self.logger.error("Sadly, python can't keep up with the data rate. Please reduce the data rate or use an alternative tool.")
+    self.logger.error("As it turns out, python can't keep up with this data rate. Please reduce the data rate or use an alternative tool.")
+    self.logger.error("If you aren't using the TIO proxy, please give it a try to offload the SLIP decoding: https://github.com/twinleaf/tio-tools.")
     import os
     os._exit(0)
 
