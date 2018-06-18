@@ -33,8 +33,14 @@ device = tldevice.Device(url=args.url, commands=args.cmd)
 
 file = open(args.logfile,'w') 
 
+print(f"Logging to {args.logfile} ...")
+
+file.write("\t".join(map(str,device.data.stream_columns()))+"\n")
+
 for row in device.data.stream_iter():
+  # Tab delimited data
   rowstring = "\t".join(map(str,row))+"\n"
+  # Write line
   file.write(rowstring)
 
 
