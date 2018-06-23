@@ -23,10 +23,11 @@ import sys
 class TermPlotter(object):
   """This is a helper/wrapper class to manage CLI animations and updates"""
 
-  def __init__(self, columns):
+  def __init__(self, columns, simple = False):
+    self.columns = columns
+    self.simple = simple
     self.term = blessings.Terminal()
     sys.stdout.write(self.term.move_up) # cover up connecting message from tio...
-    self.columns = columns
     self.ranges = [(0,0)] * len(self.columns)
     self.counts = [0] * len(columns)
     self.startTimes = [None] * len(self.columns)
@@ -59,23 +60,26 @@ class TermPlotter(object):
 
   def update(self, row):
     for i, datum in enumerate(row):
-      # Count data
-      self.counts[i] += 1
-      spinner = "🕛🕐🕑🕒🕓🕔🕕🕖🕗🕘🕙🕚"[self.counts[i] % 12]
-      #spinner = "|/-\\"[self.counts[i] % 4]
-
-      # Measure rate
-      if self.startTimes[i] is None:
-        self.startTimes[i] = time.time()
-        measuredRate = 0
+      if (self.simple):
+        sys.stdout.write(f"\r\n{self.term.clear_eol}{self.columns[i]:{self.nameWidth}s} {datum:10.4g}")
       else:
-        measuredRate = (self.counts[i]-1)/(time.time()-self.startTimes[i])
-      rateString = "%5.1f Hz"% measuredRate
+        # Count data
+        self.counts[i] += 1
+        spinner = "🕛🕐🕑🕒🕓🕔🕕🕖🕗🕘🕙🕚"[self.counts[i] % 12]
+        #spinner = "|/-\\"[self.counts[i] % 4]
 
-      barwidth = self.term.width - ( self.nameWidth + 28)
-      barString = self.bar(datum, i, width=barwidth)
+        # Measure rate
+        if self.startTimes[i] is None:
+          self.startTimes[i] = time.time()
+          measuredRate = 0
+        else:
+          measuredRate = (self.counts[i]-1)/(time.time()-self.startTimes[i])
+        rateString = "%5.1f Hz"% measuredRate
 
-      sys.stdout.write(f"\r\n{self.term.clear_eol}{self.columns[i]:{self.nameWidth}s} {datum:10.4g} {spinner} {rateString} {barString}")
+        barwidth = self.term.width - ( self.nameWidth + 28)
+        barString = self.bar(datum, i, width=barwidth)
+
+        sys.stdout.write(f"\r\n{self.term.clear_eol}{self.columns[i]:{self.nameWidth}s} {datum:10.4g} {spinner} {rateString} {barString}")
 
     if len(row) == len(self.columns): # Clean up rest of screen
       sys.stdout.write(self.term.clear_eos)
@@ -85,8 +89,8 @@ class TermPlotter(object):
     self.done = True
     print(self.term.move_down*(len(self.columns)))
 
-def monitor(dev):
-  ui = TermPlotter(dev._tio.protocol.columns)
+def monitor(dev, simple=False):
+  ui = TermPlotter(dev._tio.protocol.columns, simple=simple)
 
   def setExit(signal, frame):
     ui.finish()
@@ -117,9 +121,13 @@ if __name__ == "__main__":
                       default=[],
                       type=lambda kv: kv.split(":"), 
                       help='Commands to be run on start; rpc:val')
+  parser.add_argument('--simple',
+                      action="store_true",
+                      default=False,
+                      help='Simplify display')
   args = parser.parse_args()
 
   device = tldevice.Device(url=args.url, commands=args.cmd)
-  monitor(device)
+  monitor(device, simple=args.simple)
 
 
