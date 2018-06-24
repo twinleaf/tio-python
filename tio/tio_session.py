@@ -18,13 +18,16 @@ import queue
 import slip
 import hexdump
 import logging
+import pickle
+import tempfile
+import os
 from .tio_protocol import *
 
 class TLRPCException(Exception):
     pass
 
 class TIOSession(object):
-  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, commands=[]):
+  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, commands=[], stateCache = True):
 
     if verbose:
       logLevel = logging.DEBUG
@@ -102,14 +105,27 @@ class TIOSession(object):
     if connectingMessage:
       print(f"{desc}")
 
-    # RPCs are stashed here
-    self.rpcs = []
-    self.rpcNames = {}
-
     # Query rpcs and dstreams
-    # TODO: Caching!
-    self.rpcList()
-    self.data_send_all()
+    
+    # Try to load from cache!
+    pickleCache = os.path.join(tempfile.gettempdir(), desc)
+    if os.path.isfile(pickleCache) and stateCache:
+      with open(pickleCache, "rb") as f:
+        [protocolState, rpcState] = pickle.load(f)
+      # Perform other qualification checks!
+      [self.rpcs, self.rpcNames] = rpcState
+      self.protocol.stateImport(protocolState)
+    else:
+      # RPCs are stashed here
+      self.rpcs = []
+      self.rpcNames = {}
+      self.rpcList()
+      self.data_send_all()
+      time.sleep(0.5) # Wait to make sure all the send_all info came through
+      rpcState = [self.rpcs, self.rpcNames]
+      protocolState = self.protocol.stateExport()
+      with open(pickleCache, "wb") as f:
+        pickle.dump( [protocolState, rpcState], f)
     self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.protocol.sources)} data sources")
 
   def close(self):

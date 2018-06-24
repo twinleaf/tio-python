@@ -24,7 +24,11 @@ parser.add_argument('-v',
                     action="store_true",
                     default=False,
                     help='Verbose output for debugging')
+parser.add_argument('-r', 
+                    action="store_false",
+                    default=True,
+                    help='Ignore and rebuild rpc/stream cache')
 args = parser.parse_args()
 
-device = tldevice.Device(url=args.url, verbose=args.v, commands=args.cmd)
+device = tldevice.Device(url=args.url, verbose=args.v, commands=args.cmd, stateCache=args.r)
 device._interact()

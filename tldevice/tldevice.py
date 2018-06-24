@@ -13,8 +13,8 @@ from .tl_cmd_data import *
 import types
 
 class Device():
-  def __init__(self, url="tcp://localhost", verbose=False, commands=[]):
-    self._tio = tio.TIOSession(url, verbose=verbose, commands=commands)
+  def __init__(self, url="tcp://localhost", verbose=False, commands=[], stateCache=True):
+    self._tio = tio.TIOSession(url, verbose=verbose, commands=commands, stateCache=stateCache)
     self.dev = TwinleafDevInfoController(self)
     self._add_sources()
     self._add_rpcs()

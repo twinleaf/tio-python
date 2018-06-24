@@ -93,13 +93,23 @@ class TIOProtocol(object):
     logging.basicConfig(level=logLevel)
     self.logger = logging.getLogger('tio-protocol')
 
+    # State
     self.timebases = {}
     self.sources = {}
     self.dstreamInfo = None
     self.streams = []
+
+    # State compiled from above
     self.columns = []
     self.columnsByName = {}
     self.rowunpackByBytes = {}
+
+  def stateExport(self):
+    return [self.timebases, self.sources, self.dstreamInfo, self.streams]
+
+  def stateImport(self, stateList):
+    [self.timebases, self.sources, self.dstreamInfo, self.streams] = stateList
+    self.streamCompile()
 
   def decode_packet(self, packet):
     if len(packet)<4:
