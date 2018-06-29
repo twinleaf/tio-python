@@ -106,6 +106,9 @@ class Device():
     for source in self._tio.protocol.sources.values():
       self._add_source_path(path=source['source_name'])
 
+  def _close(self):
+    self._tio.close()
+
 if __name__ == "__main__":
   device = Device()
   device._interact()
