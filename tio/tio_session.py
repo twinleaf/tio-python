@@ -351,7 +351,7 @@ class TIOSession(object):
       if not wasActive:
         self.source_active(topic, True)
     if duration is not None:
-      samples = int(duration * self.sources[topic]['Fs'])
+      samples = int(duration * self.protocol.sources[topic]['Fs'])
     if flush:
       self.pub_flush()
     data = self.dstream_read_topic_raw(topic, samples)
