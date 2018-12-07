@@ -45,7 +45,8 @@ TL_RPC_ERRORS = [ \
   'TL_RPC_ERROR_SAVE_WR'   , # 14 Error saving conf to eeprom
   'TL_RPC_ERROR_INTERNAL'  , # 15 Firmware internal error.
   'TL_RPC_ERROR_NOBUFS'    , # 16 No buffers available to complete operation
-  'TL_RPC_ERROR_USER'      , # 17 Start value to define per-RPC error codes
+	'TL_RPC_ERROR_RANGE'     , # 17 Value outside allowed range
+  'TL_RPC_ERROR_USER'      , # 18 Start value to define per-RPC error codes
 ]
 
 
