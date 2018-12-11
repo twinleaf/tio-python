@@ -99,6 +99,7 @@ class TIOProtocol(object):
     self.sources = {}
     self.dstreamInfo = None
     self.streams = []
+    self.lastSampleNumber = None
 
     # State compiled from above
     self.columns = []
@@ -144,6 +145,14 @@ class TIOProtocol(object):
       parsedPacket['rawdata'] = data
       #self.logger.debug(f"Data stream #{payloadType}, Sample #{sampleNumber}")
       #Track sample number
+      if self.lastSampleNumber is not None:
+        lostPackets = sampleNumber - self.lastSampleNumber - 1
+        if lostPackets:
+          if lostPackets < 0:
+            self.logger.debug(f"Stream was reset.")
+          else:
+            self.logger.error(f"Stream dropped {lostPackets} packet(s).")
+      self.lastSampleNumber = sampleNumber
       try:
         self.timebases[self.dstreamInfo['dstream_timebase_id']]
       except:
@@ -253,7 +262,7 @@ class TIOProtocol(object):
           for i, stream in enumerate(range(self.dstreamInfo['dstream_total_components'])):
             streamDescription = struct.unpack("<HHLL", bytes(payload[24+stream*12:24+(stream+1)*12]) )
             streamInfo = {}
-            streamInfo['stream_source_id']    = int(streamDescription[0])
+            streamInfo['stream_source_id']     = int(streamDescription[0])
             streamInfo['stream_flags']         = int(streamDescription[1])
             streamInfo['stream_period']        = int(streamDescription[2])
             streamInfo['stream_offset']        = int(streamDescription[3])
