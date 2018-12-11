@@ -151,7 +151,8 @@ class TIOProtocol(object):
           if lostPackets < 0:
             self.logger.debug(f"Stream was reset.")
           else:
-            self.logger.error(f"Stream dropped {lostPackets} packet(s).")
+            #self.logger.error(f"Stream dropped {lostPackets} packet(s).")
+            self.logger.debug(f"Stream dropped {lostPackets} packet(s).")
       self.lastSampleNumber = sampleNumber
       try:
         self.timebases[self.dstreamInfo['dstream_timebase_id']]
