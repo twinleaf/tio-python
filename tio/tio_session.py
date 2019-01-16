@@ -49,7 +49,7 @@ class TIOSession(object):
         self.socket.connect((self.uri.hostname, self.port))
       elif self.uri.scheme == "udp":
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(("", self.port))
+        #self.socket.bind(("", self.port))
       self.socket.settimeout(0) # Non-blocking mode
     else:
       # Try treating as serial
