@@ -148,6 +148,7 @@ class TIOSession(object):
         self.logger.error(f"Error: {e}")
         import os
         os._exit(0)
+      # Handle dstream
       if packet['type'] == TL_PTYPE_STREAM0:
         try:
           self.pub_queue.put(packet, block=False)
@@ -158,6 +159,7 @@ class TIOSession(object):
         #   self.logger.error(f"No response. Timeout.")
         #   import os
         #   os._exit(0)
+      # Handle RPCs
       elif packet['type'] == TL_PTYPE_RPC_REP or packet['type'] == TL_PTYPE_RPC_ERROR:
         try:
           self.rep_queue.put(packet, block=False)
@@ -170,7 +172,13 @@ class TIOSession(object):
   def send_thread(self):
     while True:
       # Blocks
-      self.send(self.req_queue.get())
+      try:
+        self.send(self.req_queue.get(timeout=0.5))
+      except queue.Empty:
+        pass
+      # Send heartbeat; need to regulate this somewhat
+      #print("❤️")
+      self.send(self.protocol.heartbeat())
 
   def pub_flush(self):
     while not self.pub_queue.empty():

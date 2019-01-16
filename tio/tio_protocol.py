@@ -341,6 +341,12 @@ class TIOProtocol(object):
     self.logger.debug(f"REQ (ID 0x{requestID:04x}): {topic.decode('utf-8')}({payload})")
     return msg, requestID
 
+  def heartbeat(self):
+    msg = b'' # TODO: random 32-bit session value
+    header = struct.pack("<BBH", TL_PTYPE_HEARTBEAT, len(self.routingBytes), len(msg) )
+    msg = header + msg + self.routingBytes
+    return msg
+
   def dstream_data(self, parsedPacket):
     packet_bytes = int(len(parsedPacket['rawdata']))
     if packet_bytes not in self.rowunpackByBytes.keys():
