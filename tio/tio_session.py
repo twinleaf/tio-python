@@ -38,14 +38,18 @@ class TIOSession(object):
 
     # Connect to either TCP socket or serial port
     self.uri = urllib.parse.urlparse(url)
-    if self.uri.scheme == "tcp":
+    if self.uri.scheme in ["tcp", "udp"]:
       if self.uri.port is None:
-        port = 7855
+        self.port = 7855
       else:
-        port = self.uri.port
+        self.port = self.uri.port
       routingStrings = self.uri.path.split('/')[1:]
-      self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.socket.connect((self.uri.hostname, port))
+      if self.uri.scheme == "tcp":
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.connect((self.uri.hostname, self.port))
+      elif self.uri.scheme == "udp":
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind(("", self.port))
       self.socket.settimeout(0) # Non-blocking mode
     else:
       # Try treating as serial
@@ -189,6 +193,21 @@ class TIOSession(object):
     payload = bytes(self.socket.recv(payloadSize+routingSize))
     return header+payload
 
+  def recv_udp_packet(self):
+    try:
+      d = self.socket.recvfrom(512)
+      packet = d[0]
+      address = d[1]
+    except BlockingIOError:
+      return b''
+    if len(packet) < 4:
+      return b''
+    headerFields = struct.unpack("<BBH", packet[0:4] )
+    payloadType, routingSize, payloadSize = headerFields
+    if payloadSize > TL_PACKET_MAX_SIZE or routingSize>TL_PACKET_MAX_ROUTING_SIZE:
+      return b''
+    return packet
+
   def recv_slip_packet(self):
     while self.alive and self.serial.is_open:
       try:
@@ -215,6 +234,8 @@ class TIOSession(object):
   def send(self, packet):
     if self.uri.scheme == "tcp":
       self.socket.send(packet)
+    elif self.uri.scheme == "udp":
+      self.socket.sendto(packet,(self.uri.hostname, self.port))
     else:
       #hexdump.hexdump(slip.encode(packet))
       self.serial.write(slip.encode(packet))
@@ -222,6 +243,8 @@ class TIOSession(object):
   def recv(self):
     if self.uri.scheme == "tcp":
       packet = self.recv_tcp_packet()
+    elif self.uri.scheme == "udp":
+      packet = self.recv_udp_packet()
     else:
       packet = self.recv_slip_packet()
     try:
