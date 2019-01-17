@@ -292,7 +292,10 @@ class TIOSession(object):
 
   def rpc_val(self, topic = "data.source.list", rpcType = FLOAT32_T, value = None, returnRaw = False):
     if value is not None:
-      reqPayload = struct.pack("<"+TYPES[rpcType][0], value)
+      if rpcType == STRING_T:
+        reqPayload = value.encode('utf-8')
+      else:
+        reqPayload = struct.pack("<"+TYPES[rpcType][0], value)
     else:
       reqPayload = None
     reply = self.rpc(topic, reqPayload)
@@ -300,14 +303,12 @@ class TIOSession(object):
       if returnRaw:
         return reply
       if len(reply) > 0:
-        return struct.unpack("<"+TYPES[rpcType][0], reply)[0]
+        if rpcType == STRING_T:
+          return reply.decode('utf-8')
+        else:
+          return struct.unpack("<"+TYPES[rpcType][0], reply)[0]
     return None
 
-  def rpc_string(self, topic = "dev.desc", payload = None):
-    if payload is not None and payload is not "":
-      payload = payload.encode('utf-8')
-    return self.rpc(topic, payload).decode('utf-8')
-  
   def rpcList(self):
     self.rpcs = []
     rpcCount = self.rpc_val("rpc.list", UINT16_T)
@@ -329,7 +330,7 @@ class TIOSession(object):
         "valid":rpcMetadataValid, 
         "stored":rpcStored
       }]
-      #self.logger.info(f"{rpcNumber}: {rpcName}, {rpcType}, {rpcReadable}, {rpcWritable}, {rpcMetadataValid}")
+      self.logger.debug(f"{rpcNumber}: {rpcName}, type: {rpcType}, read: {rpcReadable}, write: {rpcWritable}, valid metadata: {rpcMetadataValid}")
     #self.rpcs.sort(key=lambda x:x['name'])
     return self.rpcs
 

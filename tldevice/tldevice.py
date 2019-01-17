@@ -77,6 +77,8 @@ class Device():
     for rpc in sorted_rpcs:
       if rpc['valid']:
         self._add_rpc_path(path=rpc['name'], rpcType=rpc['datatype'], callWithValue=rpc['w'])
+      # else:
+      #   print(f"Invalid metadata: {rpc['name']}")
 
   def _add_source_method(parent, parentClass=None, name="test", sourceName=""):
     def __init__(self):

@@ -62,6 +62,7 @@ UINT64_T =     0x80
 INT64_T =      0x81
 FLOAT32_T =    0x42
 FLOAT64_T =    0x82
+STRING_T =     0x03
 NONE_T =       0x00
 
 TYPES = {
