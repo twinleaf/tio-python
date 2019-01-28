@@ -74,7 +74,7 @@ class TermPlotter(object):
           measuredRate = 0
         else:
           measuredRate = (self.counts[i]-1)/(time.time()-self.startTimes[i])
-        rateString = "%5.1f Hz"% measuredRate
+        rateString = "%5.2f Hz"% measuredRate
 
         barwidth = self.term.width - ( self.nameWidth + 28)
         barString = self.bar(datum, i, width=barwidth)
