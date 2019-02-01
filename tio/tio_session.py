@@ -113,9 +113,11 @@ class TIOSession(object):
     # Query rpcs and dstreams
     
     # Try to load from cache!
-    pickleCache = os.path.join(tempfile.gettempdir(), desc)
-    if os.path.isfile(pickleCache) and stateCache:
-      with open(pickleCache, "rb") as f:
+    cacheFilename = desc.replace('/','-')
+    pickleCacheDir = os.path.join(tempfile.gettempdir(), 'com.twinleaf.tio.python.cache')
+    pickleCacheFile = os.path.join(pickleCacheDir, cacheFilename)
+    if os.path.isfile(pickleCacheFile) and stateCache:
+      with open(pickleCacheFile, "rb") as f:
         [protocolState, rpcState] = pickle.load(f)
       # Perform other qualification checks!
       [self.rpcs, self.rpcNames] = rpcState
@@ -129,7 +131,9 @@ class TIOSession(object):
       time.sleep(0.5) # Wait to make sure all the send_all info came through
       rpcState = [self.rpcs, self.rpcNames]
       protocolState = self.protocol.stateExport()
-      with open(pickleCache, "wb") as f:
+      if not os.path.exists(pickleCacheDir):
+        os.makedirs(pickleCacheDir)
+      with open(pickleCacheFile, "wb") as f:
         pickle.dump( [protocolState, rpcState], f)
     self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.protocol.sources)} data sources")
 
