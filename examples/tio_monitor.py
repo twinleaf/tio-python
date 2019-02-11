@@ -74,9 +74,9 @@ class TermPlotter(object):
           measuredRate = 0
         else:
           measuredRate = (self.counts[i]-1)/(time.time()-self.startTimes[i])
-        rateString = "%5.2f Hz"% measuredRate
+        rateString = "%6.2f Hz"% measuredRate
 
-        barwidth = self.term.width - ( self.nameWidth + 28)
+        barwidth = self.term.width - ( self.nameWidth + 29)
         barString = self.bar(datum, i, width=barwidth)
 
         sys.stdout.write(f"\r\n{self.term.clear_eol}{self.columns[i]:{self.nameWidth}s} {datum:10.4g} {spinner} {rateString} {barString}")
@@ -98,7 +98,7 @@ def monitor(dev, simple=False):
   signal.signal(signal.SIGINT, setExit)
   signal.signal(signal.SIGTERM, setExit)
 
-  sys.stdout.write(f"{dev._longname} FW {dev.dev.firmware.rev()[:8]} ID {dev.dev.mcu_id()[-7:]}")
+  sys.stdout.write(f"{dev._longname}")
 
   for row in dev.data.stream_iter(): # This should block
     ui.update(row)
