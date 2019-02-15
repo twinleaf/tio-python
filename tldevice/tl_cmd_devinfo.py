@@ -14,14 +14,8 @@ class TwinleafDevFirmwareInfoController(object):
   def __init__(self, dev):
     self._dev = dev
 
-  def rev(self):
-    return self._dev._tio.rpc('dev.firmware.rev').decode('utf-8')
-
-  def tstamp(self):
-    return self._dev._tio.rpc_val('dev.firmware.tstamp', rpcType = tio.UINT32_T)
-
-  def osver(self):
-    return self._dev._tio.rpc_val('dev.firmware.osver', rpcType = tio.UINT16_T)
+  def serial(self):
+    return self._dev._tio.rpc('dev.firmware.serial').decode('utf-8')
 
 
 class TwinleafDevInfoController(object):
@@ -42,23 +36,17 @@ class TwinleafDevInfoController(object):
   def loglevel(self, value = None):
     return self._dev._tio.rpc_val('dev.loglevel', rpcType = tio.UINT8_T, value = value)
 
-  def name(self):
-    return self._dev._tio.rpc('dev.name').decode('utf-8')
-
   def desc(self):
     return self._dev._tio.rpc('dev.desc').decode('utf-8')
+
+  def name(self):
+    return self._dev._tio.rpc('dev.name').decode('utf-8')
 
   def serial(self):
     return self._dev._tio.rpc('dev.serial').decode('utf-8')
 
   def revision(self):
     return self._dev._tio.rpc_val('dev.revision', rpcType = tio.UINT16_T)
-
-  def uid(self):
-    return self._dev._tio.rpc('dev.uid').hex()
-
-  def mcu_id(self):
-    return self._dev._tio.rpc('dev.mcu.id').hex()
 
   def session(self):
     return self._dev._tio.rpc('dev.session').hex()

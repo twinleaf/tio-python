@@ -44,8 +44,7 @@ class TwinleafConfigController(object):
       'Name': self._dev.dev.name(),
       'Revision': self._dev.dev.revision(),
       'Serial': self._dev.dev.serial(),
-      'ID': self._dev.dev.mcu_id(),
-      'Firmware': self._dev.dev.firmware.rev(), 
+      'Firmware': self._dev.dev.firmware.serial(), 
     }
     document['Configuration'] = configuration
     if filename:
@@ -60,7 +59,6 @@ class TwinleafConfigController(object):
     """
     stream = open(filename, 'r')
     document = yaml.load(stream)
-    #print('Read configuration from file %s"' % filename)
 
     configuration = {}
     functions = self._enum()
@@ -69,11 +67,9 @@ class TwinleafConfigController(object):
     dev_name = self._dev.dev.name()
     revision = self._dev.dev.revision()
     serial = self._dev.dev.serial()
-    mcu_id = self._dev.dev.mcu_id()
-    mcu_fw_rev = self._dev.dev.firmware.rev()
+    firmware = self._dev.dev.firmware.serial()
 
     if document['Name'] != dev_name:
-      #print(dev_name, document['Name'])
       raise Exception(f"Device mismatch: device is '{dev_name}'; file is '{document['Name']}'.")
 
     if document['Revision'] != revision:
@@ -82,11 +78,8 @@ class TwinleafConfigController(object):
     if document['Serial'] != serial:
       print(f"ID mismatch: device is {serial}; file is {document['Serial']}")
 
-    if document['ID'] != mcu_id:
-      print(f"ID mismatch: device is {mcu_id}; file is {document['ID']}")
-
-    if document['Firmware'] != mcu_fw_rev:
-      print(f"Firmware mismatch: device is {mcu_fw_rev}; file is {document['Firmware']}")
+    if document['Firmware'] != firmware:
+      print(f"Firmware mismatch: device is {firmware}; file is {document['Firmware']}")
 
     for function in document['Configuration'].keys():
       if function not in functionValues.keys():
