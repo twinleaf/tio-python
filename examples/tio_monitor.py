@@ -42,9 +42,9 @@ class TermPlotter(object):
     """Internal helper for animating scalar values in ASCII.
     Returns up to 'width' bars, plus two characters (surrounding square
     brackets)"""
-    if math.isnan(value):
-        return "[%s]" % ("x" * width)
     (rmin, rmax) = self.ranges[column]
+    if not math.isfinite(value) or not math.isfinite(rmin) or not math.isfinite(rmax):
+        return "[%s]" % ("x" * width)
     if value > rmax or value < rmin:
         rmax = max(value, rmax)
         rmin = min(value, rmin)
@@ -53,7 +53,7 @@ class TermPlotter(object):
     if scale != 0:
       fraction = (value - rmin) / (rmax - rmin)
     else:
-      fraction = 0 
+      fraction = 0
     bars = int(fraction * width)
     s = "[%s%s]" % ("#" * bars, " " * (width-bars))
     return s#[:width+2]
