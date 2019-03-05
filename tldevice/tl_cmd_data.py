@@ -10,7 +10,7 @@ import tio
 class TwinleafDataController(object):
   def __init__(self, dev):
     self._dev = dev
-    self.stream = self._dev._tio.dstream_read_raw
+    self.stream = self._dev._tio.stream_read_raw
 
   def stream_columns(self):
     return self._dev._tio.protocol.columns
@@ -21,9 +21,9 @@ class TwinleafDataController(object):
     if number==0:
       while True:
         self._dev._tio.pub_warn_overload()
-        yield self._dev._tio.dstream_read_raw(rows = 1, duration=None, flush=False)
+        yield self._dev._tio.stream_read_raw(rows = 1, duration=None, flush=False)
     else:
       for x in range(number):
         self._dev._tio.pub_warn_overload()
-        yield self._dev._tio.dstream_read_raw(rows = 1, duration=None, flush=False)
+        yield self._dev._tio.stream_read_raw(rows = 1, duration=None, flush=False)
 

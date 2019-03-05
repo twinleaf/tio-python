@@ -99,7 +99,7 @@ with open(args.logfile,'rb') as f:
         print(parsedPacket)
 
       if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
-        row = sensors[routingBytes].dstream_timed_data(parsedPacket)
+        row = sensors[routingBytes].stream_timed_data(parsedPacket)
         if row !=[]:
           if routingBytes not in firsttimes.keys():
             firsttimes[routingBytes] = row[0]

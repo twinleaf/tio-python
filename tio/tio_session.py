@@ -110,7 +110,7 @@ class TIOSession(object):
     if connectingMessage:
       print(f"{desc}")
 
-    # Query rpcs and dstreams
+    # Query rpcs and streams
     
     # Try to load from cache!
     cacheFilename = desc.replace('/','-')
@@ -152,7 +152,7 @@ class TIOSession(object):
         self.logger.error(f"Error: {e}")
         import os
         os._exit(0)
-      # Handle dstream
+      # Handle stream
       if packet['type'] == TL_PTYPE_STREAM0:
         try:
           self.pub_queue.put(packet, block=False)
@@ -348,21 +348,21 @@ class TIOSession(object):
       #return bool(self.rpc_val(topic+".data.active", UINT8_T))
       return topic in self.protocol.columnsByName.keys()
 
-  def dstream_read_raw(self, rows = 1, duration=None, flush=True):
+  def stream_read_raw(self, rows = 1, duration=None, flush=True):
     if flush:
       self.pub_flush()
     data = []
     while True:
       parsedPacket = self.pub_queue.get()
       if parsedPacket['type'] == TL_PTYPE_STREAM0:
-        data += [ self.protocol.dstream_data(parsedPacket) ]
+        data += [ self.protocol.stream_data(parsedPacket) ]
         if len(data) == rows:
           break
     if rows == 1:
       data = data[0]
     return data
 
-  def dstream_read_topic_raw(self, topic, samples = 10):
+  def stream_read_topic_raw(self, topic, samples = 10):
     streamInfo = self.protocol.columnsByName[topic]
     column = streamInfo['stream_column_start']
     channels = streamInfo['source_channels']
@@ -370,7 +370,7 @@ class TIOSession(object):
     while True:
       parsedPacket = self.pub_queue.get()
       if parsedPacket['type'] == TL_PTYPE_STREAM0:
-        row = self.protocol.dstream_data(parsedPacket) 
+        row = self.protocol.stream_data(parsedPacket) 
         data_flat += row[column:column+channels]
         if int(len(data_flat)/channels) >= samples: 
           break
@@ -382,7 +382,7 @@ class TIOSession(object):
       data = data[0]
     return data
 
-  def dstream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, flush=True):
+  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, flush=True):
     if autoActivate:
       wasActive = self.source_active(topic)
       if not wasActive:
@@ -391,7 +391,7 @@ class TIOSession(object):
       samples = int(duration * self.protocol.sources[topic]['Fs'])
     if flush:
       self.pub_flush()
-    data = self.dstream_read_topic_raw(topic, samples)
+    data = self.stream_read_topic_raw(topic, samples)
     if autoActivate and not wasActive:
       self.source_active(topic, False)
     return data

@@ -22,7 +22,7 @@ TL_PTYPE_RPC_ERROR  = 4 # RPC error
 TL_PTYPE_HEARTBEAT  = 5 # NOP heartbeat
 TL_PTYPE_TIMEBASE   = 6 # Update to a timebase's parameters
 TL_PTYPE_SOURCE     = 7 # Update to a source's parameters
-TL_PTYPE_DSTREAM    = 8 # Update to a dstream's parameters
+TL_PTYPE_STREAM     = 8 # Update to a stream's parameters
 TL_PTYPE_USER       = 64
 TL_PTYPE_STREAM0    = 128
 TL_PTYPE_OTHER_ROUTING = -1
@@ -98,7 +98,7 @@ class TIOProtocol(object):
     # State
     self.timebases = {}
     self.sources = {}
-    self.dstreamInfo = None
+    self.streamInfo = None
     self.streams = []
     self.lastSampleNumber = None
 
@@ -108,10 +108,10 @@ class TIOProtocol(object):
     self.rowunpackByBytes = {}
 
   def stateExport(self):
-    return [self.timebases, self.sources, self.dstreamInfo, self.streams]
+    return [self.timebases, self.sources, self.streamInfo, self.streams]
 
   def stateImport(self, stateList):
-    [self.timebases, self.sources, self.dstreamInfo, self.streams] = stateList
+    [self.timebases, self.sources, self.streamInfo, self.streams] = stateList
     self.streamCompile()
 
   def decode_packet(self, packet):
@@ -156,7 +156,7 @@ class TIOProtocol(object):
             self.logger.debug(f"Stream dropped {lostPackets} packet(s).")
       self.lastSampleNumber = sampleNumber
       try:
-        self.timebases[self.dstreamInfo['dstream_timebase_id']]
+        self.timebases[self.streamInfo['stream_timebase_id']]
       except:
         pass
 
@@ -245,23 +245,23 @@ class TIOProtocol(object):
       self.logger.debug(f"source {parsedPacket['source_id']}: {description}")
       self.logger.debug(f"source {parsedPacket['source_id']}: {parsedPacket['source_name']} {parsedPacket['source_title']} ({parsedPacket['source_units']})")
 
-    elif payloadType == TL_PTYPE_DSTREAM: # Got dstream description
+    elif payloadType == TL_PTYPE_STREAM: # Got stream description
       streamDescription = struct.unpack("<HHLLQHH", bytes(payload[:24]) )
-      parsedPacket['dstream_id']               = int(streamDescription[0])
-      parsedPacket['dstream_timebase_id']      = int(streamDescription[1])
-      parsedPacket['dstream_period']           = int(streamDescription[2])
-      parsedPacket['dstream_offset']           = int(streamDescription[3])
-      parsedPacket['dstream_sample_number']    = int(streamDescription[4])
-      parsedPacket['dstream_total_components'] = int(streamDescription[5])
-      parsedPacket['dstream_flags']            = int(streamDescription[6])
+      parsedPacket['stream_id']               = int(streamDescription[0])
+      parsedPacket['stream_timebase_id']      = int(streamDescription[1])
+      parsedPacket['stream_period']           = int(streamDescription[2])
+      parsedPacket['stream_offset']           = int(streamDescription[3])
+      parsedPacket['stream_sample_number']    = int(streamDescription[4])
+      parsedPacket['stream_total_components'] = int(streamDescription[5])
+      parsedPacket['stream_flags']            = int(streamDescription[6])
 
-      self.logger.debug(f"dstream {parsedPacket['dstream_id']}: timebase {parsedPacket['dstream_timebase_id']}, sources {parsedPacket['dstream_total_components']}")
+      self.logger.debug(f"stream {parsedPacket['stream_id']}: timebase {parsedPacket['stream_timebase_id']}, sources {parsedPacket['stream_total_components']}")
 
-      if parsedPacket['dstream_id'] == 0: # Only support dstream 0
-        self.dstreamInfo = parsedPacket
+      if parsedPacket['stream_id'] == 0: # Only support stream 0
+        self.streamInfo = parsedPacket
         if len(payload)>24:
           self.streams = []
-          for i, stream in enumerate(range(self.dstreamInfo['dstream_total_components'])):
+          for i, stream in enumerate(range(self.streamInfo['stream_total_components'])):
             streamDescription = struct.unpack("<HHLL", bytes(payload[24+stream*12:24+(stream+1)*12]) )
             streamInfo = {}
             streamInfo['stream_source_id']     = int(streamDescription[0])
@@ -269,7 +269,7 @@ class TIOProtocol(object):
             streamInfo['stream_period']        = int(streamDescription[2])
             streamInfo['stream_offset']        = int(streamDescription[3])
             self.streams += [streamInfo]
-            self.logger.debug(f"dstream {parsedPacket['dstream_id']} component {i}: source {streamInfo['stream_source_id']}, period {streamInfo['stream_period']}")
+            self.logger.debug(f"stream {parsedPacket['stream_id']} component {i}: source {streamInfo['stream_source_id']}, period {streamInfo['stream_period']}")
 
           self.streamCompile()
 
@@ -295,9 +295,9 @@ class TIOProtocol(object):
     rowPack = "<"
     if self.timebases == {} or len(self.sources) == 0:
       return
-    if self.dstreamInfo is not None:
-      period_us = self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_period_us'] \
-                * self.dstreamInfo['dstream_period']
+    if self.streamInfo is not None:
+      period_us = self.timebases[self.streamInfo['stream_timebase_id']]['timebase_period_us'] \
+                * self.streamInfo['stream_period']
     for stream in self.streams:
       sourceInfo = self.sourceInfoFromID(stream['stream_source_id'])
       if sourceInfo == {}:
@@ -348,7 +348,7 @@ class TIOProtocol(object):
     msg = header + msg + self.routingBytes
     return msg
 
-  def dstream_data(self, parsedPacket):
+  def stream_data(self, parsedPacket):
     packet_bytes = int(len(parsedPacket['rawdata']))
     if packet_bytes not in self.rowunpackByBytes.keys():
       self.logger.debug(f"No source information for packet")
@@ -356,7 +356,7 @@ class TIOProtocol(object):
     data = struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )
     return data
 
-  def dstream_timed_data(self, parsedPacket):
+  def stream_timed_data(self, parsedPacket):
     packet_bytes = int(len(parsedPacket['rawdata']))
     if packet_bytes not in self.rowunpackByBytes.keys():
       self.logger.debug(f"No source information for packet")
@@ -365,7 +365,7 @@ class TIOProtocol(object):
 
     try:
       period = 1e-6*self.streams[0]['stream_period_us']
-      sample_time = 0 # self.timebases[self.dstreamInfo['dstream_timebase_id']]['timebase_start_time']
+      sample_time = 0 # self.timebases[self.streamInfo['stream_timebase_id']]['timebase_start_time']
       sample_time += period * (parsedPacket['sampleNumber'] )
     except:
       sample_time = math.nan
