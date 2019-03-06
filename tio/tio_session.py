@@ -113,7 +113,7 @@ class TIOSession(object):
     # Query rpcs and streams
     
     # Try to load from cache!
-    cacheFilename = desc.replace('/','-')
+    cacheFilename = desc.replace('/','-')+".pickle"
     pickleCacheDir = os.path.join(tempfile.gettempdir(), 'com.twinleaf.tio.python.cache')
     pickleCacheFile = os.path.join(pickleCacheDir, cacheFilename)
     if os.path.isfile(pickleCacheFile) and stateCache:
