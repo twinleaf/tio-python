@@ -2,7 +2,7 @@
 # coding: utf-8
 """
 Twinleaf IO (tio) - A serialization for instrumentation
-Copyright 2017 Twinleaf LLC
+Copyright 2017-2019 Twinleaf LLC
 License: MIT
 
 A simple protocol for working with sensors through single-port/serial connections.
@@ -401,8 +401,9 @@ class TIOSession(object):
       self.warn_overload()
 
   def warn_overload(self):
-    self.logger.error("As it turns out, python can't keep up with this data rate. Please reduce the data rate or use an alternative tool.")
-    self.logger.error("If you aren't using the TIO proxy, please give it a try to offload the SLIP decoding: https://github.com/twinleaf/tio-tools.")
+    self.logger.error("Buffer overfow. Python didn't keep up with the incoming data rate.")
+    self.logger.error("Option 1: Reduce the data rate: gmr.data.decimation 100".)
+    self.logger.error("Option 2: Use the tio proxy to offload the SLIP decoding: https://github.com/twinleaf/tio-tools.")
     import os
     os._exit(0)
 
