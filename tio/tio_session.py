@@ -402,8 +402,9 @@ class TIOSession(object):
 
   def warn_overload(self):
     self.logger.error("Buffer overfow. Python didn't keep up with the incoming data rate.")
-    self.logger.error("Option 1: Reduce the data rate: gmr.data.decimation 100".)
-    self.logger.error("Option 2: Use the tio proxy to offload the SLIP decoding: https://github.com/twinleaf/tio-tools.")
+    self.logger.error("Option 1: Reduce the data rate; for 10 Hz (new firmware only): data.rate 10")
+    self.logger.error("Option 2: Reduce the data rate; for 10 Hz: gmr.data.decimation 80")
+    self.logger.error("Option 3: Use the tio proxy to offload the SLIP decoding: https://github.com/twinleaf/tio-tools")
     import os
     os._exit(0)
 
