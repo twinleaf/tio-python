@@ -396,6 +396,10 @@ class TIOSession(object):
       self.source_active(topic, False)
     return data
 
+  def source_rate(self, topic):
+    streamInfo = self.protocol.columnsByName[topic]
+    return streamInfo['Fs']
+
   def pub_warn_overload(self):
     if self.pub_queue.qsize() > .95*self.pub_queue.maxsize:
       self.warn_overload()
