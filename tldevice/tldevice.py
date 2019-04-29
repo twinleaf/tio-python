@@ -11,6 +11,7 @@ import tio
 from .tl_cmd_devinfo import *
 from .tl_cmd_data import *
 import types
+import re
 
 class Device():
   def __init__(self, url="tcp://localhost", verbose=False, commands=[], stateCache=True):
@@ -21,7 +22,8 @@ class Device():
     if self._tio.protocol.sources != {}:
       self.data = TwinleafDataController(self)
     self._longname = self.dev.desc()
-    self._shortname = self.dev.name().lower()
+    clean = lambda varStr: re.sub('\W|^(?=\d)','_', varStr)
+    self._shortname = clean(self.dev.name()).lower()
 
   def _interact(self):
     imported_objects = locals()
