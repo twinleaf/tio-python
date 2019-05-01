@@ -15,11 +15,11 @@ parser.add_argument("url",
                     nargs='?', 
                     default='tcp://localhost/',
                     help='URL: tcp://localhost')
-parser.add_argument("--cmd", 
+parser.add_argument("--rpc", 
                     action='append', 
                     default=[],
                     type=lambda kv: kv.split(":"), 
-                    help='Commands to be run on start; rpc:val')
+                    help='Commands to be sent on start; rpc:type:val')
 parser.add_argument('-v', 
                     action="store_true",
                     default=False,
@@ -30,5 +30,5 @@ parser.add_argument('-r',
                     help='Ignore and rebuild rpc/stream cache')
 args = parser.parse_args()
 
-device = tldevice.Device(url=args.url, verbose=args.v, commands=args.cmd, stateCache=args.r)
+device = tldevice.Device(url=args.url, verbose=args.v, rpcs=args.rpc, stateCache=args.r)
 device._interact()

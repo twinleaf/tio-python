@@ -27,7 +27,7 @@ class TLRPCException(Exception):
     pass
 
 class TIOSession(object):
-  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, commands=[], stateCache = True):
+  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, rpcs=[], stateCache = True):
 
     if verbose:
       logLevel = logging.DEBUG
@@ -100,10 +100,18 @@ class TIOSession(object):
     self.socket_send_thread.name = 'send-thread'
     self.socket_send_thread.start()
 
-    # Startup commands
-    for command, payload in commands:
-      self.rpc(command, payload.encode('utf-8') )
-      #time.sleep(0.1)
+    # Startup RPCs
+    for topic, rpcType, value in rpcs:
+      if type(rpcType) is str: # Find type from dict of types
+        rpcType = list(TYPES.keys())[ [entry[1] for entry in TYPES.values()].index(rpcType) ]
+      if rpcType == NONE_T:
+        self.rpc(topic, value.encode('utf-8'))
+      else:
+        if rpcType == FLOAT32_T or rpcType == FLOAT64_T:
+          value = float(value)
+        else:
+          value = int(value)
+        self.rpc_val(topic, rpcType, value)
 
     # Do a quick first name check
     desc = self.rpc('dev.desc').decode('utf-8')
@@ -406,8 +414,8 @@ class TIOSession(object):
 
   def warn_overload(self):
     self.logger.error("Buffer overfow. Python didn't keep up with the incoming data rate.")
-    self.logger.error("Option 1: Reduce the data rate; for 10 Hz (new firmware only): data.rate 10")
-    self.logger.error("Option 2: Reduce the data rate; for 10 Hz: gmr.data.decimation 80")
+    self.logger.error("Option 1: Reduce the data rate; for 10 Hz add '--rpc data.rate:f32:10'")
+    self.logger.error("Option 2: Reduce the data rate; for 10 Hz add '--rpc gmr.data.decimation:u32:80'")
     self.logger.error("Option 3: Use the tio proxy to offload the SLIP decoding: https://github.com/twinleaf/tio-tools")
     import os
     os._exit(0)

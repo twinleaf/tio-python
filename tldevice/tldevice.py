@@ -14,8 +14,8 @@ import types
 import re
 
 class Device():
-  def __init__(self, url="tcp://localhost", verbose=False, commands=[], stateCache=True):
-    self._tio = tio.TIOSession(url, verbose=verbose, commands=commands, stateCache=stateCache)
+  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True):
+    self._tio = tio.TIOSession(url, verbose=verbose, rpcs=rpcs, stateCache=stateCache)
     self.dev = TwinleafDevInfoController(self)
     self._add_sources()
     self._add_rpcs()
