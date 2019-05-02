@@ -116,18 +116,18 @@ if __name__ == "__main__":
                       nargs='?', 
                       default='tcp://localhost/',
                       help='URL: tcp://localhost')
-  parser.add_argument("--cmd", 
+  parser.add_argument("--rpc", 
                       action='append', 
                       default=[],
                       type=lambda kv: kv.split(":"), 
-                      help='Commands to be run on start; rpc:val')
+                      help='Commands to be run on start; rpc:type:val')
   parser.add_argument('--simple',
                       action="store_true",
                       default=False,
                       help='Simplify display')
   args = parser.parse_args()
 
-  device = tldevice.Device(url=args.url, commands=args.cmd)
+  device = tldevice.Device(url=args.url, rpcs=args.rpc)
   monitor(device, simple=args.simple)
 
 

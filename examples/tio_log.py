@@ -22,14 +22,14 @@ parser.add_argument("logfile",
                     nargs='?', 
                     default='log.tsv',
                     help='Log filename: log.tsv')
-parser.add_argument("--cmd", 
+parser.add_argument("--rpc", 
                     action='append', 
                     default=[],
                     type=lambda kv: kv.split(":"), 
-                    help='Commands to be run on start; rpc:val')
+                    help='Commands to be run on start; rpc:type:val')
 args = parser.parse_args()
 
-device = tldevice.Device(url=args.url, commands=args.cmd)
+device = tldevice.Device(url=args.url, rpcs=args.rpc)
 
 file = open(args.logfile,'w') 
 
