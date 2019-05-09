@@ -24,6 +24,7 @@ setup(name='tio',
     ],
     scripts=[
         'examples/itio.py',
-        'examples/tio_monitor.py',
+        'examples/tio-monitor.py',
+        'examples/tio-rates.py',
     ],
     zip_safe=False)
