@@ -27,3 +27,5 @@ class TwinleafDataController(object):
         self._dev._tio.pub_warn_overload()
         yield self._dev._tio.stream_read_raw(rows = 1, duration=None, flush=False)
 
+  def rate(self, value=None):
+    return self._dev._tio.rpc_val('data.rate', rpcType = tio.FLOAT32_T, value=value)
