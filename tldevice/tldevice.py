@@ -22,6 +22,7 @@ class Device():
     if self._tio.protocol.sources != {}:
       self.data = TwinleafDataController(self)
     self._longname = self.dev.desc()
+    self._name = self.dev.name()
     clean = lambda varStr: re.sub('\W|^(?=\d)','_', varStr)
     self._shortname = clean(self.dev.name()).lower()
 

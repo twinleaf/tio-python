@@ -83,7 +83,7 @@ class TermPlotter(object):
 
     if len(row) == len(self.columns): # Clean up rest of screen
       sys.stdout.write(self.term.clear_eos)
-    sys.stdout.write(self.term.move_up*(len(row)))
+    sys.stdout.write(self.term.move_up*(len(row)+1))
 
   def finish(self):
     self.done = True
@@ -98,9 +98,10 @@ def monitor(dev, simple=False):
   signal.signal(signal.SIGINT, setExit)
   signal.signal(signal.SIGTERM, setExit)
 
-  sys.stdout.write(f"{dev._longname}")
+  sys.stdout.write(f"{dev._name} - {dev._longname}\r\n")
 
   for row in dev.data.stream_iter(): # This should block
+    sys.stdout.write(f"{dev._name} - {dev._longname}")
     ui.update(row)
 
 if __name__ == "__main__":
