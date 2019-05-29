@@ -98,10 +98,8 @@ def monitor(dev, simple=False):
   signal.signal(signal.SIGINT, setExit)
   signal.signal(signal.SIGTERM, setExit)
 
-  sys.stdout.write(f"{dev._name} - {dev._longname}\r\n")
-
   for row in dev.data.stream_iter(): # This should block
-    sys.stdout.write(f"{dev._name} - {dev._longname}")
+    sys.stdout.write(f"\r\n{dev._tio.name} - {dev._tio.desc}")
     ui.update(row)
 
 if __name__ == "__main__":
@@ -128,7 +126,7 @@ if __name__ == "__main__":
                       help='Simplify display')
   args = parser.parse_args()
 
-  device = tldevice.Device(url=args.url, rpcs=args.rpc)
+  device = tldevice.Device(url=args.url, rpcs=args.rpc, connectingMessage=False)
   monitor(device, simple=args.simple)
 
 

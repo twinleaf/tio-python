@@ -14,22 +14,20 @@ import types
 import re
 
 class Device():
-  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True):
-    self._tio = tio.TIOSession(url, verbose=verbose, rpcs=rpcs, stateCache=stateCache)
+  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True, connectingMessage = True):
+    self._tio = tio.TIOSession(url, verbose=verbose, rpcs=rpcs, stateCache=stateCache, connectingMessage = connectingMessage)
     self.dev = TwinleafDevInfoController(self)
     self._add_sources()
     self._add_rpcs()
     if self._tio.protocol.sources != {}:
       self.data = TwinleafDataController(self)
-    self._longname = self.dev.desc()
-    self._name = self.dev.name()
     clean = lambda varStr: re.sub('\W|^(?=\d)','_', varStr)
-    self._shortname = clean(self.dev.name()).lower()
+    self._shortname = clean(self._tio.name).lower()
 
   def _interact(self):
     imported_objects = locals()
     imported_objects[self._shortname] = self
-    #banner = f"{self._longname} REPL"
+    #banner = f"{self._tio.desc} REPL"
     banner=""
     exit_msg = f"{self._shortname} thanks you."
     try:

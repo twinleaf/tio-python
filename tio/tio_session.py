@@ -114,14 +114,15 @@ class TIOSession(object):
         self.rpc_val(topic, rpcType, value)
 
     # Do a quick first name check
-    desc = self.rpc('dev.desc').decode('utf-8')
+    self.desc = self.rpc('dev.desc').decode('utf-8')
+    self.name = self.rpc('dev.name').decode('utf-8')
     if connectingMessage:
-      print(f"{desc}")
+      print(f"{self.name} - {self.desc}")
 
     # Query rpcs and streams
     
     # Try to load from cache!
-    cacheFilename = desc.replace('/','-')+".pickle"
+    cacheFilename = self.desc.replace('/','-')+".pickle"
     pickleCacheDir = os.path.join(tempfile.gettempdir(), 'com.twinleaf.tio.python.cache')
     pickleCacheFile = os.path.join(pickleCacheDir, cacheFilename)
     if os.path.isfile(pickleCacheFile) and stateCache:
