@@ -50,7 +50,7 @@ class TIOSession(object):
       elif self.uri.scheme == "udp":
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         #self.socket.bind(("", self.port))
-      self.socket.settimeout(0) # Non-blocking mode
+      self.socket.settimeout(1.0)
     else:
       # Try treating as serial
       # Deal with non-standard url for routing
@@ -153,7 +153,7 @@ class TIOSession(object):
   def recv_thread(self):
     while True:
       try:
-        packet = self.recv()
+        packet = self.recv() # Blocks
       except IOError as e:
         # for now, just exit, TODO: reconnect?
         # probably some I/O problem such as disconnected USB serial
