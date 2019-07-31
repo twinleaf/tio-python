@@ -407,7 +407,9 @@ class TIOSession(object):
 
   def source_rate(self, topic):
     streamInfo = self.protocol.columnsByName[topic]
-    return streamInfo['Fs']
+    return streamInfo['stream_Fs']
+    # streamInfo = self.protocol.sources[topic]
+    # return streamInfo['Fs']
 
   def pub_warn_overload(self):
     if self.pub_queue.qsize() > .95*self.pub_queue.maxsize:
