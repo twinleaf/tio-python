@@ -84,7 +84,7 @@ class TIOSession(object):
     self.protocol = TIOProtocol(routing = self.routing)
 
     # Initialize queues and threading controls
-    self.pub_queue = queue.Queue(maxsize=100)
+    self.pub_queue = queue.Queue(maxsize=1000)
     self.req_queue = queue.Queue(maxsize=1)
     self.rep_queue = queue.Queue(maxsize=1)
     self.lock = threading.Lock()
