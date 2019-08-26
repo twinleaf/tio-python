@@ -348,13 +348,17 @@ class TIOProtocol(object):
     msg = header + msg + self.routingBytes
     return msg
 
-  def stream_data(self, parsedPacket):
+  def stream_data(self, parsedPacket, timeaxis = False):
     packet_bytes = int(len(parsedPacket['rawdata']))
     if packet_bytes not in self.rowunpackByBytes.keys():
       self.logger.debug(f"No source information for packet")
       return []
     data = struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )
-    return data
+    if timeaxis:
+      time = parsedPacket['sampleNumber'] / self.streams[0]['stream_Fs']
+      return time,data
+    else:
+      return data
 
   def stream_timed_data(self, parsedPacket):
     packet_bytes = int(len(parsedPacket['rawdata']))

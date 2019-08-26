@@ -357,41 +357,55 @@ class TIOSession(object):
       #return bool(self.rpc_val(topic+".data.active", UINT8_T))
       return topic in self.protocol.columnsByName.keys()
 
-  def stream_read_raw(self, rows = 1, duration=None, flush=True):
+  def stream_read_raw(self, rows = 1, duration=None, flush=True, timeaxis=False):
     if flush:
       self.pub_flush()
     data = []
     while True:
       parsedPacket = self.pub_queue.get()
       if parsedPacket['type'] == TL_PTYPE_STREAM0:
-        data += [ self.protocol.stream_data(parsedPacket) ]
+        if timeaxis:
+          time, row = self.protocol.stream_data(parsedPacket, timeaxis=timeaxis)
+          data += [ [ time ] + list(row) ]
+        else:
+          data += [ self.protocol.stream_data(parsedPacket, timeaxis=timeaxis) ]
         if len(data) == rows:
           break
     if rows == 1:
       data = data[0]
     return data
 
-  def stream_read_topic_raw(self, topic, samples = 10):
+  def stream_read_topic_raw(self, topic, samples = 10, timeaxis=False):
     streamInfo = self.protocol.columnsByName[topic]
     column = streamInfo['stream_column_start']
     channels = streamInfo['source_channels']
     data_flat = []
+    times = []
     while True:
       parsedPacket = self.pub_queue.get()
       if parsedPacket['type'] == TL_PTYPE_STREAM0:
-        row = self.protocol.stream_data(parsedPacket) 
-        data_flat += row[column:column+channels]
+        if timeaxis:
+          time,row = self.protocol.stream_data(parsedPacket, timeaxis=timeaxis)
+          data_row = row[column:column+channels]
+          data_flat += data_row
+          if data_row != []:
+            times += [time]
+        else:
+          row = self.protocol.stream_data(parsedPacket, timeaxis=timeaxis)          
+          data_flat += row[column:column+channels]
         if int(len(data_flat)/channels) >= samples: 
           break
     data_flat = data_flat[:channels*samples] # truncate at specified point
     data = [[row for row in data_flat[column::channels]] for column in range(channels)] # group data by channel
+    if timeaxis:
+      data = [times] + data
     if samples == 1:
       data = [datum[0] for datum in data]
     if len(data) == 1:
       data = data[0]
     return data
 
-  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, flush=True):
+  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, flush=True, timeaxis=False):
     if autoActivate:
       wasActive = self.source_active(topic)
       if not wasActive:
@@ -400,7 +414,7 @@ class TIOSession(object):
       samples = int(duration * self.protocol.sources[topic]['Fs'])
     if flush:
       self.pub_flush()
-    data = self.stream_read_topic_raw(topic, samples)
+    data = self.stream_read_topic_raw(topic, samples, timeaxis=timeaxis)
     if autoActivate and not wasActive:
       self.source_active(topic, False)
     return data

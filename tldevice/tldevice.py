@@ -85,8 +85,8 @@ class Device():
     def __init__(self):
       self._tio = parent._tio
       self._sourceName = sourceName
-    def __call__(self, samples=1, duration=None, flush=True):
-      return self._tio.stream_read_topic(self._sourceName, samples, duration, flush)
+    def __call__(self, samples=1, duration=None, flush=True, timeaxis=False):
+      return self._tio.stream_read_topic(self._sourceName, samples=samples, duration=duration, flush=flush, timeaxis=timeaxis)
     def rate(self):
      return self._tio.source_rate(self._sourceName)
     if sourceName is not "":
