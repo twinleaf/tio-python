@@ -14,9 +14,15 @@ import types
 import re
 
 class Device():
-  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True, connectingMessage = True):
-    self._tio = tio.TIOSession(url, verbose=verbose, rpcs=rpcs, stateCache=stateCache, connectingMessage = connectingMessage)
+  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True, connectingMessage = True, send_router=None, specialize=True):
+    self._tio = tio.TIOSession(url, verbose=verbose, rpcs=rpcs, stateCache=stateCache, connectingMessage = connectingMessage, send_router=send_router, specialize=specialize)
     self.dev = TwinleafDevInfoController(self)
+    if specialize:
+      self._specialize()
+  
+  def _specialize(self):
+    if not self._tio.specialized:
+      self._tio.specialize()
     self._add_sources()
     self._add_rpcs()
     if self._tio.protocol.sources != {}:
@@ -25,7 +31,7 @@ class Device():
     self._shortname = clean(self._tio.name).lower()
 
   def _interact(self):
-    imported_objects = locals()
+    imported_objects = {}
     imported_objects[self._shortname] = self
     #banner = f"{self._tio.desc} REPL"
     banner=""

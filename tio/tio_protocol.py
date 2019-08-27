@@ -93,7 +93,8 @@ class TIOProtocol(object):
     if verbose:
       logLevel = logging.DEBUG
     logging.basicConfig(level=logLevel)
-    self.logger = logging.getLogger('tio-protocol')
+    routingKey = '/'.join(map(str,routing))
+    self.logger = logging.getLogger('tio-protocol'+routingKey)
 
     # State
     self.timebases = {}
@@ -112,7 +113,7 @@ class TIOProtocol(object):
 
   def stateImport(self, stateList):
     [self.timebases, self.sources, self.streamInfo, self.streams] = stateList
-    self.streamCompile()
+    self.streamCompile(self.streams)
 
   def decode_packet(self, packet):
     if len(packet)<4:
@@ -126,16 +127,19 @@ class TIOProtocol(object):
       return { 'type':TL_PTYPE_INVALID }
 
     parsedPacket = { 'type':payloadType }
+    parsedPacket['raw'] = packet 
 
     # Strip routing
     if routingSize > 0:
-      routingBytes = packet[-routingSize:] 
+      routingBytes = packet[-routingSize:]
       parsedPacket['routing'] = list(routingBytes)
     else:
       parsedPacket['routing'] = []
 
+    # Toss packet if it's wrong routing
     if list(self.routingBytes) != parsedPacket['routing']:
-      return { 'type':TL_PTYPE_OTHER_ROUTING } # Toss packet if it's wrong routing
+      parsedPacket['type'] = TL_PTYPE_OTHER_ROUTING
+      return parsedPacket
 
     payload = packet[4:len(packet)-routingSize]
 
@@ -207,7 +211,7 @@ class TIOProtocol(object):
       self.logger.debug(f"timebase {parsedPacket['timebase_id']}: "+
               f"{parsedPacket['timebase_Fs']} Hz")
 
-      self.streamCompile()
+      self.streamCompile(self.streams)
 
     elif payloadType == TL_PTYPE_SOURCE: # Got source description
       streamDescription = struct.unpack("<HHLLIHHB", bytes(payload[:21]) )
@@ -238,10 +242,13 @@ class TIOProtocol(object):
       parsedPacket['source_dtype']      = TYPES[parsedPacket['source_type']][1]
       parsedPacket['source_dtype_pack'] = TYPES[parsedPacket['source_type']][0]
       parsedPacket['source_dtype_bytes']= TYPES[parsedPacket['source_type']][2]
-      
-      self.streamCompile()
+    
+      # copy existing Fs
+      parsedPacket['Fs'] = self.sources[parsedPacket['source_name']]['Fs']
       
       self.sources[parsedPacket['source_name']] = parsedPacket
+      self.streamCompile(self.streams)
+
       self.logger.debug(f"source {parsedPacket['source_id']}: {description}")
       self.logger.debug(f"source {parsedPacket['source_id']}: {parsedPacket['source_name']} {parsedPacket['source_title']} ({parsedPacket['source_units']})")
 
@@ -260,7 +267,7 @@ class TIOProtocol(object):
       if parsedPacket['stream_id'] == 0: # Only support stream 0
         self.streamInfo = parsedPacket
         if len(payload)>24:
-          self.streams = []
+          streams = []
           for i, stream in enumerate(range(self.streamInfo['stream_total_components'])):
             streamDescription = struct.unpack("<HHLL", bytes(payload[24+stream*12:24+(stream+1)*12]) )
             streamInfo = {}
@@ -268,10 +275,9 @@ class TIOProtocol(object):
             streamInfo['stream_flags']         = int(streamDescription[1])
             streamInfo['stream_period']        = int(streamDescription[2])
             streamInfo['stream_offset']        = int(streamDescription[3])
-            self.streams += [streamInfo]
+            streams += [streamInfo]
             self.logger.debug(f"stream {parsedPacket['stream_id']} component {i}: source {streamInfo['stream_source_id']}, period {streamInfo['stream_period']}")
-
-          self.streamCompile()
+          self.streamCompile(streams)
 
     elif payloadType == TL_PTYPE_HEARTBEAT:
       return parsedPacket
@@ -287,9 +293,9 @@ class TIOProtocol(object):
         return source
     return {} # Not found
 
-  def streamCompile(self):
-    self.columns = []
-    self.columnsByName = {}
+  def streamCompile(self, streams):
+    columns = []
+    columnsByName = {}
     column = 0
     rowBytes = 0
     rowPack = "<"
@@ -298,7 +304,7 @@ class TIOProtocol(object):
     if self.streamInfo is not None:
       period_us = self.timebases[self.streamInfo['stream_timebase_id']]['timebase_period_us'] \
                 * self.streamInfo['stream_period']
-    for stream in self.streams:
+    for stream in streams:
       sourceInfo = self.sourceInfoFromID(stream['stream_source_id'])
       if sourceInfo == {}:
         return
@@ -308,14 +314,14 @@ class TIOProtocol(object):
       stream['stream_Fs'] = 1e6/stream['stream_period_us']
       self.sources[stream['source_name']]['Fs'] = stream['stream_Fs']
 
-      self.columnsByName[ stream['source_name'] ] = stream
+      columnsByName[ stream['source_name'] ] = stream
 
       for i in range(stream['source_channels']):
         column += 1
         columnName = stream['source_name']
         if len(stream['source_column_names']) > 1:
           columnName += "."+stream['source_column_names'][i]
-        self.columns += [ columnName ] 
+        columns += [ columnName ] 
         rowBytes += stream['source_dtype_bytes']
         rowPack  += stream['source_dtype_pack']
 
@@ -326,7 +332,12 @@ class TIOProtocol(object):
         f"{stream['stream_column_start']+stream['source_channels']-1}: "+
         f"{stream['source_name']} "+
         f"@ {stream['stream_Fs']} Hz")
-    self.logger.debug(f"stream columns: {self.columns}")
+    self.logger.debug(f"stream columns: {columns}")
+
+    # Set things atomically
+    self.streams = streams
+    self.columns = columns
+    self.columnsByName = columnsByName
 
   def req(self, topic, payload):
     if type(topic) is str:

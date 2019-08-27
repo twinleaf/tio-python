@@ -27,7 +27,7 @@ class TLRPCException(Exception):
     pass
 
 class TIOSession(object):
-  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, rpcs=[], stateCache = True):
+  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, rpcs=[], stateCache = True, send_router=None, specialize=True):
 
     if verbose:
       logLevel = logging.DEBUG
@@ -51,6 +51,10 @@ class TIOSession(object):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         #self.socket.bind(("", self.port))
       self.socket.settimeout(1.0)
+    elif self.uri.scheme == "router":
+      self.send_router = send_router
+      self.recv_queue = queue.Queue(maxsize=1000)
+      routingStrings = self.uri.path.split('/')[1:]
     else:
       # Try treating as serial
       # Deal with non-standard url for routing
@@ -73,6 +77,7 @@ class TIOSession(object):
       self.serial = serial.serial_for_url(url, baudrate=115200, timeout=1)
       self.serial.reset_input_buffer()
 
+    # routingStrings is a list of integers [], [0], or [0,1]
     routingStrings = filter(lambda a: a != '', routingStrings)
     try:
       self.routing = [ int(address) for address in routingStrings ]
@@ -80,8 +85,11 @@ class TIOSession(object):
     except:
       raise Exception(f'Bad routing path: {routingString}')
 
+    # Used if the routing isn't to us
+    self.recv_router = None
+
     # Init TIO protocol state
-    self.protocol = TIOProtocol(routing = self.routing)
+    self.protocol = TIOProtocol(routing = self.routing, verbose=verbose)
 
     # Initialize queues and threading controls
     self.pub_queue = queue.Queue(maxsize=1000)
@@ -100,6 +108,12 @@ class TIOSession(object):
     self.socket_send_thread.name = 'send-thread'
     self.socket_send_thread.start()
 
+    # Don't specialize if you don't have a solid connection yet (ie in multi device sync)
+    self.specialized = False
+    if specialize:
+      self.specialize(rpcs=rpcs, stateCache=stateCache, connectingMessage=connectingMessage)
+
+  def specialize(self, rpcs=[], stateCache=True, connectingMessage=True):
     # Startup RPCs
     for topic, rpcType, value in rpcs:
       if type(rpcType) is str: # Find type from dict of types
@@ -146,6 +160,8 @@ class TIOSession(object):
         pickle.dump( [protocolState, rpcState], f)
     self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.protocol.sources)} data sources")
 
+    self.specialized = True
+
   def close(self):
     # TODO: Notify threads to quit
     pass
@@ -153,7 +169,7 @@ class TIOSession(object):
   def recv_thread(self):
     while True:
       try:
-        packet = self.recv() # Blocks
+        decoded_packet = self.recv() # Blocks
       except IOError as e:
         # for now, just exit, TODO: reconnect?
         # probably some I/O problem such as disconnected USB serial
@@ -162,25 +178,27 @@ class TIOSession(object):
         import os
         os._exit(0)
       # Handle stream
-      if packet['type'] == TL_PTYPE_STREAM0:
+      if decoded_packet['type'] == TL_PTYPE_STREAM0:
         try:
-          self.pub_queue.put(packet, block=False)
+          self.pub_queue.put(decoded_packet, block=False)
         except queue.Full:
           self.pub_queue.get() # Toss a packet
-          self.pub_queue.put(packet, block=False)
+          self.pub_queue.put(decoded_packet, block=False)
         # except queue.Empty:
         #   self.logger.error(f"No response. Timeout.")
         #   import os
         #   os._exit(0)
       # Handle RPCs
-      elif packet['type'] == TL_PTYPE_RPC_REP or packet['type'] == TL_PTYPE_RPC_ERROR:
+      elif decoded_packet['type'] == TL_PTYPE_RPC_REP or decoded_packet['type'] == TL_PTYPE_RPC_ERROR:
         try:
-          self.rep_queue.put(packet, block=False)
+          self.rep_queue.put(decoded_packet, block=False)
         except queue.Full:
           self.rep_queue.get() # Toss a packet
-          self.rep_queue.put(packet, block=False)
+          self.rep_queue.put(decoded_packet, block=False)
           self.logger.error("Tossing an unclaimed REP!")
-
+      elif decoded_packet['type'] == TL_PTYPE_OTHER_ROUTING:
+        if self.recv_router is not None:
+          self.recv_router(decoded_packet['routing'],decoded_packet['raw'])
 
   def send_thread(self):
     while True:
@@ -257,8 +275,9 @@ class TIOSession(object):
       self.socket.send(packet)
     elif self.uri.scheme == "udp":
       self.socket.sendto(packet,(self.uri.hostname, self.port))
+    elif self.uri.scheme == "router":
+      self.send_router(packet)
     else:
-      #hexdump.hexdump(slip.encode(packet))
       self.serial.write(slip.encode(packet))
 
   def recv(self):
@@ -266,6 +285,8 @@ class TIOSession(object):
       packet = self.recv_tcp_packet()
     elif self.uri.scheme == "udp":
       packet = self.recv_udp_packet()
+    elif self.uri.scheme == "router":
+      packet = self.recv_queue.get()
     else:
       packet = self.recv_slip_packet()
     try:
@@ -357,7 +378,7 @@ class TIOSession(object):
       #return bool(self.rpc_val(topic+".data.active", UINT8_T))
       return topic in self.protocol.columnsByName.keys()
 
-  def stream_read_raw(self, rows = 1, duration=None, flush=True, timeaxis=False):
+  def stream_read_raw(self, samples = 1, duration=None, flush=True, timeaxis=False):
     if flush:
       self.pub_flush()
     data = []
@@ -369,9 +390,9 @@ class TIOSession(object):
           data += [ [ time ] + list(row) ]
         else:
           data += [ self.protocol.stream_data(parsedPacket, timeaxis=timeaxis) ]
-        if len(data) == rows:
+        if len(data) == samples:
           break
-    if rows == 1:
+    if samples == 1:
       data = data[0]
     return data
 

@@ -28,4 +28,7 @@ class TwinleafDataController(object):
         yield self._dev._tio.stream_read_raw(rows = 1, duration=None, flush=False)
 
   def rate(self, value=None):
-    return self._dev._tio.rpc_val('data.rate', rpcType = tio.FLOAT32_T, value=value)
+    if value is None:
+      return self._dev._tio.protocol.streams[0]['stream_Fs'] 
+    else:
+      return self._dev._tio.rpc_val('data.rate', rpcType = tio.FLOAT32_T, value=value)

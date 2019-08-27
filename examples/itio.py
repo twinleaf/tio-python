@@ -5,7 +5,7 @@ License: MIT
 Author: Thomas Kornack <kornack@twinleaf.com>
 """
 
-import tldevice
+import tldevicesync
 import argparse
 
 parser = argparse.ArgumentParser(prog='itio', 
@@ -30,5 +30,5 @@ parser.add_argument('-r',
                     help='Ignore and rebuild rpc/stream cache')
 args = parser.parse_args()
 
-device = tldevice.Device(url=args.url, verbose=args.v, rpcs=args.rpc, stateCache=args.r)
+device = tldevicesync.DeviceSync(url=args.url, verbose=args.v, rpcs=args.rpc, stateCache=args.r)
 device._interact()
