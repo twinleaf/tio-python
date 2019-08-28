@@ -67,12 +67,11 @@ class DeviceSync():
     if maxtime != mintime:
       for i,stream in enumerate(syncStreams):
         max_deviation = 0
-        while times[i] < starttime:
-          row = stream(samples=1, flush=False, timeaxis=True)
-          times[i] += [row[0]]
+        while times[i] < maxtime:
+          times[i] = stream(samples=1, flush=False, timeaxis=True)[0]
           max_deviation -= 1
           if max_deviation > 5:
-            raise "Can't sync stream!"
+            raise Exception("Can't sync stream!")
     return syncStreams
 
   def syncStreamsRead(self, syncStreams = [], samples = 1, duration=None, timeaxis=True):
@@ -86,7 +85,7 @@ class DeviceSync():
     
     starttimes = [timecol[0] for timecol in times]
     if max(starttimes) != min(starttimes):
-      raise "Streams out of sync!"
+      raise Exception("Streams out of sync!")
     
     if timeaxis:
       data = [times[0]] + data
