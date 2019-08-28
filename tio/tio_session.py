@@ -304,7 +304,7 @@ class TIOSession(object):
     return requestID
 
   def recv_rep(self, requestID = None):
-    parsedPacket = self.rep_queue.get(timeout=1.5)
+    parsedPacket = self.rep_queue.get(timeout=3.0)
     if requestID is None or requestID == parsedPacket['requestid']:
       if parsedPacket['type'] == TL_PTYPE_RPC_ERROR:
         raise TLRPCException( TL_RPC_ERRORS[parsedPacket['error']] )

@@ -244,8 +244,11 @@ class TIOProtocol(object):
       parsedPacket['source_dtype_bytes']= TYPES[parsedPacket['source_type']][2]
     
       # copy existing Fs
-      parsedPacket['Fs'] = self.sources[parsedPacket['source_name']]['Fs']
-      
+      try:
+        parsedPacket['Fs'] = self.sources[parsedPacket['source_name']]['Fs']
+      except:
+        pass
+
       self.sources[parsedPacket['source_name']] = parsedPacket
       self.streamCompile(self.streams)
 

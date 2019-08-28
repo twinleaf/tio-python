@@ -51,11 +51,15 @@ class DeviceSync():
         banner=banner, 
         exitmsg = exit_msg)
 
-  def syncStreamsStart(self, syncStreams = [], flush=True):
+class SyncStream():
+  def __init__(self, streams = []):
+    self.streams = streams
+
+  def sync(self, flush=False):
     # Find the initial datum time
     times = []
     data = []
-    for stream in syncStreams:
+    for stream in self.streams:
       row = stream(samples=1, flush=flush, timeaxis=True)
       times += [row[0]]
       data += row[1:]
@@ -65,25 +69,31 @@ class DeviceSync():
     maxtime = max(times)
     mintime = min(times)
     if maxtime != mintime:
-      for i,stream in enumerate(syncStreams):
+      for i,stream in enumerate(self.streams):
         max_deviation = 0
         while times[i] < maxtime:
           times[i] = stream(samples=1, flush=False, timeaxis=True)[0]
           max_deviation -= 1
           if max_deviation > 5:
             raise Exception("Can't sync stream!")
-    return syncStreams
 
-  def syncStreamsRead(self, syncStreams = [], samples = 1, duration=None, timeaxis=True):
+  def read(self, samples = 1, duration=None, timeaxis=True, flush=False, sync=True):
+    if sync:
+      self.sync(flush=flush)
+
     # Acquire data
     times = []
     data = [] 
-    for stream in syncStreams:
+    for stream in self.streams:
       streamdata = stream(samples=samples, duration=duration, flush=False, timeaxis=True)
       times += [streamdata[0]]
       data += streamdata[1:]
     
-    starttimes = [timecol[0] for timecol in times]
+    if samples == 1:
+      starttimes = times
+    else:
+      starttimes = [timecol[0] for timecol in times]
+
     if max(starttimes) != min(starttimes):
       raise Exception("Streams out of sync!")
     
@@ -92,6 +102,17 @@ class DeviceSync():
 
     return data
     
+  def iter(self, samples=0, flush=True, sync=True):
+    if sync:
+      yield self.read(samples = 1, flush=False, sync=True)
+      samples -= 1
+    if samples<=0:
+      while True:
+        yield self.read(samples = 1, flush=False, sync=False)
+    else:
+      for x in range(number):
+        yield self.read(samples = 1, flush=False, sync=False)
+  
 if __name__ == "__main__":
   device = DeviceSync()
   device._interact()

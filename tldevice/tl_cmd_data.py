@@ -15,17 +15,17 @@ class TwinleafDataController(object):
   def stream_columns(self):
     return self._dev._tio.protocol.columns
 
-  def stream_iter(self, number=0, flush=True):
+  def stream_iter(self, samples=0, flush=True):
     if flush:
       self._dev._tio.pub_flush()
-    if number==0:
+    if samples==0:
       while True:
         self._dev._tio.pub_warn_overload()
-        yield self._dev._tio.stream_read_raw(rows = 1, duration=None, flush=False)
+        yield self._dev._tio.stream_read_raw(samples = 1, duration=None, flush=False)
     else:
-      for x in range(number):
+      for x in range(samples):
         self._dev._tio.pub_warn_overload()
-        yield self._dev._tio.stream_read_raw(rows = 1, duration=None, flush=False)
+        yield self._dev._tio.stream_read_raw(samples = 1, duration=None, flush=False)
 
   def rate(self, value=None):
     if value is None:
