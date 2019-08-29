@@ -10,6 +10,10 @@ Log data!
 
 import tldevicesync
 import argparse
+import datetime
+
+now =  datetime.datetime.now()
+filenamedefault = now.strftime("Log %Y-%m-%d %H;%M.tsv")
 
 parser = argparse.ArgumentParser(prog='tio_log', 
                                  description='Very simple logging utility.')
@@ -20,7 +24,7 @@ parser.add_argument("url",
                     help='URL: tcp://localhost')
 parser.add_argument("logfile", 
                     nargs='?', 
-                    default='log.tsv',
+                    default=filenamedefault,
                     help='Log filename: log.tsv')
 parser.add_argument("--rpc", 
                     action='append', 
@@ -40,7 +44,8 @@ streams += [tio.vmr0.vector]
 streams += [tio.vmr1.vector]
 ss = tldevicesync.SyncStream(streams)
 
-#file.write("\t".join(map(str,device.data.stream_columns()))+"\n")
+# Write column names as header
+file.write("\t".join(map(str,ss.columnnames()))+"\n")
 
 for row in ss.iter():
   # Tab delimited data

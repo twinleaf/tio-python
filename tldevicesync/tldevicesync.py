@@ -30,6 +30,7 @@ class DeviceSync():
   def _specialize(self, routingKey):
     self._routes[routingKey]._specialize()
     self._routes[routingKey]._shortname += routingKey
+    #self._routes[routingKey]._tio.shortname = self._routes[routingKey]._shortname
     self.__dict__[self._routes[routingKey]._shortname] = self._routes[routingKey]
 
   def _interact(self):
@@ -55,7 +56,7 @@ class SyncStream():
   def __init__(self, streams = []):
     self.streams = streams
 
-  def sync(self, flush=False):
+  def sync(self, flush=True):
     # Find the initial datum time
     times = []
     data = []
@@ -72,14 +73,15 @@ class SyncStream():
       for i,stream in enumerate(self.streams):
         max_deviation = 0
         while times[i] < maxtime:
+          print(f"Drop a sample on stream {i}")
           times[i] = stream(samples=1, flush=False, timeaxis=True)[0]
           max_deviation -= 1
           if max_deviation > 5:
             raise Exception("Can't sync stream!")
 
-  def read(self, samples = 1, duration=None, timeaxis=True, flush=False, sync=True):
+  def read(self, samples = 1, duration=None, timeaxis=True, sync=True):
     if sync:
-      self.sync(flush=flush)
+      self.sync()
 
     # Acquire data
     times = []
@@ -95,23 +97,33 @@ class SyncStream():
       starttimes = [timecol[0] for timecol in times]
 
     if max(starttimes) != min(starttimes):
-      raise Exception("Streams out of sync!")
+      delta = max(starttimes) - min(starttimes)
+      raise Exception(f"Streams out of sync by {delta}!")
     
     if timeaxis:
       data = [times[0]] + data
 
     return data
     
-  def iter(self, samples=0, flush=True, sync=True):
+  def columnnames(self, timeaxis=True):
+    # TODO: Get resource shortname + routing; vmr0.vector.x
+    names = []
+    for stream in self.streams:
+      names += stream.columnnames()
+    if timeaxis:
+      names = ["time"] + names
+    return names
+
+  def iter(self, samples=0, sync=True):
     if sync:
-      yield self.read(samples = 1, flush=False, sync=True)
+      yield self.read(samples = 1, sync=sync)
       samples -= 1
     if samples<=0:
       while True:
-        yield self.read(samples = 1, flush=False, sync=False)
+        yield self.read(samples = 1, sync=False)
     else:
       for x in range(number):
-        yield self.read(samples = 1, flush=False, sync=False)
+        yield self.read(samples = 1, sync=False)
   
 if __name__ == "__main__":
   device = DeviceSync()

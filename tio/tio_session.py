@@ -440,6 +440,13 @@ class TIOSession(object):
       self.source_active(topic, False)
     return data
 
+  def stream_topic_columnnames(self, topic):
+    streamInfo = self.protocol.columnsByName[topic]
+    column = streamInfo['stream_column_start']
+    channels = streamInfo['source_channels']
+    columnnames = self.protocol.columns[column:column+channels-1]
+    return columnnames
+
   def source_rate(self, topic):
     streamInfo = self.protocol.columnsByName[topic]
     return streamInfo['stream_Fs']

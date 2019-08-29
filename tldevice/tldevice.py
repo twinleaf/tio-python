@@ -94,9 +94,11 @@ class Device():
     def __call__(self, samples=1, duration=None, flush=True, timeaxis=False):
       return self._tio.stream_read_topic(self._sourceName, samples=samples, duration=duration, flush=flush, timeaxis=timeaxis)
     def rate(self):
-     return self._tio.source_rate(self._sourceName)
+      return self._tio.source_rate(self._sourceName)
+    def columnnames(self):
+      return self._tio.stream_topic_columnnames(self._sourceName)
     if sourceName is not "":
-      cls = type(name,(), {'__init__':__init__, '__call__':__call__, 'rate':rate})
+      cls = type(name,(), {'__init__':__init__, '__call__':__call__, 'rate':rate, 'columnnames':columnnames})
     else:
       cls = type(name,(), {'__init__':__init__})
     clsInstance = cls()
