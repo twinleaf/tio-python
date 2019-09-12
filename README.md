@@ -29,10 +29,18 @@ The interactive prompt is a lot better if ipython is available (`pip3 install ip
 
 `tio-python` is uploaded to [PyPI](https://pypi.org) and can be installed/upgraded using `pip`:
 
-  - Windows Command Prompt `> py -m pip install tio --upgrade`
-  - macOS/linux `$pip3 install tio --upgrade`
+  - Windows Command Prompt `py -m pip install tio --upgrade`
+  - macOS/linux `pip3 install tio --upgrade`
 
 Windows users who can't run python might need to [add python to their path](https://www.pythoncentral.io/add-python-to-path-python-is-not-recognized-as-an-internal-or-external-command/).
+
+### Optional installation
+
+iPython greatly enhances the interactive itio.py program. It is possible to explore the properties of a device by using tab completion to see available properties and methods. Get it
+
+  - macOS/linux: `pip3 install ipython`
+  - Windows: `py -m pip install ipython`
+
 
 ## Performance
 
