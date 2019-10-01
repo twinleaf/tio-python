@@ -50,12 +50,12 @@ At the moment, the native serial interface is significantly slower than the TCP 
 
 Terminal #1: serial proxy
 
-  $ bin/proxy /dev/ttyUSB0
+    $ bin/proxy /dev/ttyUSB0
 
 Terminal #2: your python program
 
-  $ itio.py
-  ...
+    $ itio.py
+    ...
 
 where the proxy serves to port 7855 and itio by default connects to that port on localhost. This also permits more interesting networking topologies and distributed signal anslysis possible.
 
@@ -63,7 +63,7 @@ where the proxy serves to port 7855 and itio by default connects to that port on
 
 The `tldevice` module performs metaprogramming to construct an object that has methods that match the RPC calls available on the device. It uses the `tio` module, a lower-level library for connecting and managing a communication session. To interact with a Twinleaf CSB current supply, a script would look like:
 
-```
+```python
 import tldevice
 csb = tldevice.Device('COM1')
 csb.coil.x.current(0.25) # mA
@@ -71,7 +71,7 @@ csb.coil.x.current(0.25) # mA
 
 To receive data streams from a sensor such as the [Twinleaf VMR vector magnetometer](http://www.twinleaf.com/vector/VMR), it is possible to use the named streams such as vmr.gmr(duration=1) to get one second of data. To get the data from all the streams synchronously, use the iterator at vmr.data.stream_iter(). A simple logging program for the VMR vector magnetometer would look like this:
 
-```
+```python
 import tldevice
 vmr = tldevice.Device()
 file = open('log.tsv','w') 
