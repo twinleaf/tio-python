@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ..
-    Copyright: 2018 Twinleaf LLC
+    Copyright: 2018-9 Twinleaf LLC
     Author: kornack@twinleaf.com
 
 Parse native format logged data.
@@ -81,7 +81,7 @@ with open(args.logfile,'rb') as f:
       payload = bytes(f.read(payloadSize+routingSize))
       packet = header+payload
       if routingSize > 0:
-        routingBytes = payload[-routingSize:] 
+        routingBytes = payload[-routingSize:]
       if routingBytes not in routes:
         routes += [routingBytes]
         sensors[routingBytes] = tio.TIOProtocol(verbose = args.vp, routing=list(routingBytes))
@@ -99,22 +99,26 @@ with open(args.logfile,'rb') as f:
         print(parsedPacket)
 
       if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
-        row = sensors[routingBytes].stream_timed_data(parsedPacket)
+        row = sensors[routingBytes].stream_data(parsedPacket, timeaxis=True)
         if row !=[]:
+          time,data = row
           if routingBytes not in firsttimes.keys():
-            firsttimes[routingBytes] = row[0]
-          rowsamples = len(row)
-          rowstring = "\t".join(map(str,row))
+            firsttimes[routingBytes] = time
+          rowsamples = len(data)
+          rowstring = str(time)+"\t"
+          rowstring += "\t".join(map(str,data))
           # Add blanks to pack out when absent data
           rowstring += "\t"*(len(sensors[routingBytes].columns)+1-rowsamples) # +1 for time column
           rowstring += "\n"
-          #print(rowstring)
           tempfiles[routingBytes].write(rowstring)
 
 for fd in tempfiles.values():
   fd.close()
 
-firsttime = max(firsttimes.values())
+try:
+  firsttime = max(firsttimes.values())
+except:
+  raise Exception("No metadata in sample enough to get a first sample. Sample for longer?")
 if firsttime>0:
   print(f"Lopping off data until {firsttime} seconds!")
 
