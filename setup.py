@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='tio',
-    version='3.5.0',
+    version='3.5.1',
     description='Helper libraries and utils for Twinleaf I/O (TIO) devices',
     long_description="Twinleaf I/O is a serialization for kilohertz rate data from data-intensive sensors connected by serial ports or tunneled through TCP.",
     url='https://github.com/twinleaf/tio-python',
@@ -27,5 +27,6 @@ setup(name='tio',
         'examples/itio.py',
         'examples/tio-monitor.py',
         'examples/tio-rates.py',
+        'examples/tio-log.py',
     ],
     zip_safe=False)
