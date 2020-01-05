@@ -14,6 +14,9 @@ class TwinleafDevFirmwareInfoController(object):
   def __init__(self, dev):
     self._dev = dev
 
+  def hash(self):
+    return self._dev._tio.rpc('dev.firmware.hash').decode('utf-8')
+
   def serial(self):
     return self._dev._tio.rpc('dev.firmware.serial').decode('utf-8')
 
