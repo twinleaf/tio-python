@@ -10,6 +10,7 @@ License: MIT
 import tio
 from .tl_cmd_devinfo import *
 from .tl_cmd_data import *
+from .tl_cmds import *
 import types
 import re
 
@@ -50,7 +51,7 @@ class Device():
         banner=banner, 
         exitmsg = exit_msg)
 
-  def _add_rpc_method(parent,parentClass=None,name="test", rpcName="", rpcType=tio.FLOAT32_T, callWithValue=True):
+  def _add_rpc_method(parent,parentClass=None,name="test", rpcName="", rpcType=tio.FLOAT32_T, callWithValue=True, driver=None):
     def  __init__(self):
       self._tio = parent._tio
       self._rpcName = rpcName
@@ -60,7 +61,9 @@ class Device():
     def rpcCallNoValue(self):
       return self._tio.rpc_val(self._rpcName, self._rpcType)
     if rpcName is not "":
-      if callWithValue:
+      if driver is not None:
+        cls = type(name,(), {'__init__':__init__, '__call__':driver})
+      elif callWithValue:
         cls = type(name,(), {'__init__':__init__, '__call__':rpcCallWithValue})
       else:
         cls = type(name,(), {'__init__':__init__, '__call__':rpcCallNoValue})
@@ -69,14 +72,14 @@ class Device():
     clsInstance = cls()
     setattr(parentClass, name, clsInstance)
 
-  def _add_rpc_path(self,path="this.here.command", rpcType=tio.FLOAT32_T, callWithValue=True):
+  def _add_rpc_path(self,path="this.here.command", rpcType=tio.FLOAT32_T, callWithValue=True, driver=None):
     parts = path.split('.')
     parent = self
     for part in parts[:-1]:
       if part not in vars(parent).keys():
         self._add_rpc_method(parentClass=parent, name=part)
       parent = parent.__dict__[part]
-    self._add_rpc_method(parentClass=parent, name=parts[-1], rpcName=path, rpcType=rpcType, callWithValue=callWithValue)
+    self._add_rpc_method(parentClass=parent, name=parts[-1], rpcName=path, rpcType=rpcType, callWithValue=callWithValue, driver=driver)
 
   def _add_rpcs(self):
     sorted_rpcs = self._tio.rpcs
@@ -84,8 +87,15 @@ class Device():
     for rpc in sorted_rpcs:
       if rpc['valid']:
         self._add_rpc_path(path=rpc['name'], rpcType=rpc['datatype'], callWithValue=rpc['w'])
-      # else:
-      #   print(f"Invalid metadata: {rpc['name']}")
+      else:
+        # print(f"Invalid metadata: {rpc['name']}")
+        # Look for special driver with the name of the rpc
+        rpcdrivername = 'rpc_'+rpc['name'].replace('.','_')
+        if rpcdrivername in globals():
+          rpcdriver = globals()[rpcdrivername]
+          self._add_rpc_path(path=rpc['name'], rpcType=rpc['datatype'], callWithValue=rpc['w'], driver=rpcdriver)
+        else:
+          self._tio.logger.debug(f"Unimplemented RPC: {rpc['name']}")
 
   def _add_source_method(parent, parentClass=None, name="test", sourceName=""):
     def __init__(self):
