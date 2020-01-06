@@ -8,7 +8,7 @@ from typing import List
 import tio
 import struct
 
-def rpc_capture_block(self, index:int = 0, blocksize=256, size=32768, typecode="L") -> List[float]:
+def rpc_capture_block(self, index:int = 0, blocksize:int=256, size:int=32768, typecode:str="L") -> List[float]:
   capture = []
   blocks = int(size/blocksize)
   entriesPerBlock = int(blocksize/struct.Struct('<'+typecode).size)
