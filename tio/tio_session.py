@@ -149,8 +149,8 @@ class TIOSession(object):
       # RPCs are stashed here
       self.rpcs = []
       self.rpcNames = {}
+      self.data_send_all() # Do this first so that we get all the data info while the RPCs are coming in.
       self.rpcList()
-      self.data_send_all()
       time.sleep(0.5) # Wait to make sure all the send_all info came through
       rpcState = [self.rpcs, self.rpcNames]
       protocolState = self.protocol.stateExport()
@@ -158,6 +158,7 @@ class TIOSession(object):
         os.makedirs(pickleCacheDir)
       with open(pickleCacheFile, "wb") as f:
         pickle.dump( [protocolState, rpcState], f)
+        self.logger.debug(f"Saved RPC cache")
     self.logger.info(f"Found {len(self.rpcs)} RPCs and {len(self.protocol.sources)} data sources")
 
     self.specialized = True
