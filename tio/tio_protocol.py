@@ -148,7 +148,7 @@ class TIOProtocol(object):
       data = payload[4:]
       parsedPacket['sampleNumber'] = sampleNumber
       parsedPacket['rawdata'] = data
-      self.logger.debug(f"Data stream #{payloadType}, Sample #{sampleNumber}")
+      # self.logger.debug(f"Data stream #{payloadType}, Sample #{sampleNumber}")
       #Track sample number
       if self.lastSampleNumber is not None:
         lostPackets = sampleNumber - self.lastSampleNumber - 1
