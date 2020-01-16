@@ -151,7 +151,7 @@ class TIOSession(object):
       self.rpcNames = {}
       self.data_send_all() # Do this first so that we get all the data info while the RPCs are coming in.
       self.rpcList()
-      time.sleep(0.5) # Wait to make sure all the send_all info came through
+      time.sleep(1.0) # Wait to make sure all the send_all info came through
       rpcState = [self.rpcs, self.rpcNames]
       protocolState = self.protocol.stateExport()
       if not os.path.exists(pickleCacheDir):
