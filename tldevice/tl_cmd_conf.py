@@ -58,7 +58,7 @@ class TwinleafConfigController(object):
     Writes values from file to device
     """
     stream = open(filename, 'r')
-    document = yaml.load(stream)
+    document = yaml.load(stream, Loader=yaml.SafeLoader)
 
     configuration = {}
     functions = self._enum()
