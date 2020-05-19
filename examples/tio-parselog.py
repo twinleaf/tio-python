@@ -80,6 +80,7 @@ with open(args.logfile,'rb') as f:
     else:
       payload = bytes(f.read(payloadSize+routingSize))
       packet = header+payload
+      routingBytes = b''
       if routingSize > 0:
         routingBytes = payload[-routingSize:]
       if routingBytes not in routes:
