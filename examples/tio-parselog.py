@@ -85,7 +85,7 @@ with open(args.logfile,'rb') as f:
       if routingBytes not in routes:
         routes += [routingBytes]
         sensors[routingBytes] = tio.TIOProtocol(verbose = args.vp, routing=list(routingBytes))
-        tempfilenames[routingBytes] = outputfile[:-4]+f"-{routingBytes}.tsv"
+        tempfilenames[routingBytes] = outputfile[:-4]+f"-{list(routingBytes)}.tsv"
         tempfiles[routingBytes] = open(tempfilenames[routingBytes], 'w')
 
       try:
