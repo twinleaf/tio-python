@@ -80,13 +80,12 @@ with open(args.logfile,'rb') as f:
     else:
       payload = bytes(f.read(payloadSize+routingSize))
       packet = header+payload
-      routingBytes = b''
       if routingSize > 0:
         routingBytes = payload[-routingSize:]
       if routingBytes not in routes:
         routes += [routingBytes]
         sensors[routingBytes] = tio.TIOProtocol(verbose = args.vp, routing=list(routingBytes))
-        tempfilenames[routingBytes] = outputfile[:-4]+f"-{list(routingBytes)}.tsv"
+        tempfilenames[routingBytes] = outputfile[:-4]+f"-{routingBytes}.tsv"
         tempfiles[routingBytes] = open(tempfilenames[routingBytes], 'w')
 
       try:

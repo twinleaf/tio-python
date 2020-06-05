@@ -92,18 +92,20 @@ class TIOSession(object):
     self.protocol = TIOProtocol(routing = self.routing, verbose=verbose)
 
     # Initialize queues and threading controls
-    self.pub_queue = queue.Queue(maxsize=1000)
+    self.pub_queue = queue.Queue(maxsize=8000)
     self.req_queue = queue.Queue(maxsize=1)
     self.rep_queue = queue.Queue(maxsize=1)
     self.lock = threading.Lock()
     self.alive = True
 
     # Launch socket management thread
-    self.socket_recv_thread = threading.Thread(target=self.recv_thread)
+    self.socket_recv_thread_stop_event = threading.Event()
+    self.socket_recv_thread = threading.Thread(target=self.recv_thread,args=(self.socket_recv_thread_stop_event,))
     self.socket_recv_thread.daemon = True
     self.socket_recv_thread.name = 'recv-thread'
     self.socket_recv_thread.start()
-    self.socket_send_thread = threading.Thread(target=self.send_thread)
+    self.socket_send_thread_stop_event = threading.Event()
+    self.socket_send_thread = threading.Thread(target=self.send_thread,args=(self.socket_send_thread_stop_event,))
     self.socket_send_thread.daemon = True
     self.socket_send_thread.name = 'send-thread'
     self.socket_send_thread.start()
@@ -164,11 +166,18 @@ class TIOSession(object):
     self.specialized = True
 
   def close(self):
+    self.socket_recv_thread_stop_event.set()
+    self.socket_send_thread_stop_event.set()
+    while self.socket_recv_thread.is_alive():
+        pass
+    while self.socket_send_thread.is_alive():
+        pass
+    if hasattr(self, 'serial'):
+        self.serial.close()
     # TODO: Notify threads to quit
-    pass
 
-  def recv_thread(self):
-    while True:
+  def recv_thread(self,stop_event):
+    while not stop_event.is_set():
       try:
         decoded_packet = self.recv() # Blocks
       except IOError as e:
@@ -201,8 +210,8 @@ class TIOSession(object):
         if self.recv_router is not None:
           self.recv_router(decoded_packet['routing'],decoded_packet['raw'])
 
-  def send_thread(self):
-    while True:
+  def send_thread(self,stop_event):
+    while not stop_event.is_set():
       # Blocks
       try:
         self.send(self.req_queue.get(timeout=0.5))
@@ -320,9 +329,11 @@ class TIOSession(object):
       return self.recv_rep(requestID)
     except TLRPCException as e:
       self.logger.error(f"RPC ERROR {topic}: {e}" )
+      self.close()
       raise
     except queue.Empty as e:
       self.logger.error(f"RPC TIMEOUT {topic}: {e}" )
+      self.close()
       raise
 
   def rpc_val(self, topic = "data.source.list", rpcType = FLOAT32_T, value = None, returnRaw = False):
