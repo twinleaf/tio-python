@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from setuptools import setup
 
 setup(name='tio',
@@ -12,21 +10,15 @@ setup(name='tio',
     license='MIT',
     python_requires='>=3.6',
     install_requires=[
-        "PyYAML",
-        "pyserial",
-        "blessings",
-        "hexdump",
+        'PyYAML',
+        'pyserial',
+        'blessings',
+        'hexdump',
     ],
     packages=[
         'tio',
         'slip',
         'tldevice',
         'tldevicesync',
-    ],
-    scripts=[
-        'examples/itio.py',
-        'examples/tio-monitor.py',
-        'examples/tio-rates.py',
-        'examples/tio-log.py',
     ],
     zip_safe=False)
