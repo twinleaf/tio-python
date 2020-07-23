@@ -283,10 +283,15 @@ class TIOProtocol(object):
           self.streamCompile(streams)
 
     elif payloadType == TL_PTYPE_HEARTBEAT:
+      self.logger.debug(f"Stream packet; not  {payloadType}")
       return parsedPacket
 
+    elif payloadType > 128:
+      self.logger.debug(f"Unhandled stream{payloadType-128} packet.")
+
     else:
-      self.logger.error("ERROR: Unknown packet type")
+      self.logger.error(f"Unknown packet type {payloadType}")
+      
 
     return parsedPacket
 
