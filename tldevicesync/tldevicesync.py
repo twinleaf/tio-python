@@ -31,7 +31,7 @@ class DeviceSync():
     self._routes[routingKey]._specialize()
     self._routes[routingKey]._shortname += routingKey
     #self._routes[routingKey]._tio.shortname = self._routes[routingKey]._shortname
-    self.__dict__[self._routes[routingKey]._shortname] = self._routes[routingKey]
+    self.__dict__[self._routes[routingKey]._shortname.replace("/","")] = self._routes[routingKey]
 
   def _interact(self):
     imported_objects = {}
