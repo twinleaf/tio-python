@@ -10,7 +10,8 @@ import tio
 class TwinleafDataController(object):
   def __init__(self, dev):
     self._dev = dev
-    self.stream = self._dev._tio.stream_read_raw
+    # Not used
+    # self.stream = self._dev._tio.stream_read_raw
 
   def columnnames(self):
     return self._dev._tio.protocol.columns
