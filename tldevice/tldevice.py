@@ -21,9 +21,9 @@ class Device():
     if specialize:
       self._specialize()
   
-  def _specialize(self):
+  def _specialize(self, stateCache = True):
     if not self._tio.specialized:
-      self._tio.specialize()
+      self._tio.specialize(stateCache=stateCache)
     self._add_sources()
     self._add_rpcs()
     if self._tio.protocol.sources != {}:

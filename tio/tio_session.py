@@ -36,6 +36,9 @@ class TIOSession(object):
     logging.basicConfig(level=logLevel)
     self.logger = logging.getLogger('tio-session')
 
+    # Set RPC's
+    self.rpcs = rpcs
+
     # Connect to either TCP socket or serial port
     self.uri = urllib.parse.urlparse(url)
     if self.uri.scheme in ["tcp", "udp"]:
@@ -111,9 +114,11 @@ class TIOSession(object):
     # Don't specialize if you don't have a solid connection yet (ie in multi device sync)
     self.specialized = False
     if specialize:
-      self.specialize(rpcs=rpcs, stateCache=stateCache, connectingMessage=connectingMessage)
+      self.specialize(rpcs=self.rpcs, stateCache=stateCache, connectingMessage=connectingMessage)
 
   def specialize(self, rpcs=[], stateCache=True, connectingMessage=True):
+    if not rpcs:
+      rpcs = self.rpcs
     # Startup RPCs
     for topic, rpcType, value in rpcs:
       if type(rpcType) is str: # Find type from dict of types
