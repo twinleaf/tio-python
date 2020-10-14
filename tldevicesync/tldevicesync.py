@@ -55,6 +55,9 @@ class DeviceSync():
 
 class SyncStream():
   def __init__(self, devices = [], streams = []):
+    for device in devices:
+      if not isinstance(device, tldevice.Device):
+        raise Exception("Not a valid device")
     self.devices = devices
     self.streams = streams
 
