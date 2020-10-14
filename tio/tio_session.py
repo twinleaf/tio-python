@@ -391,15 +391,44 @@ class TIOSession(object):
     while True:
       parsedPacket = self.pub_queue.get()
       if parsedPacket['type'] == TL_PTYPE_STREAM0:
-        if timeaxis:
-          time, row = self.protocol.stream_data(parsedPacket, timeaxis=timeaxis)
-          data += [ [ time ] + list(row) ]
-        else:
-          data += [ self.protocol.stream_data(parsedPacket, timeaxis=timeaxis) ]
+        data += [self.protocol.stream_data(parsedPacket, timeaxis=True)]
         if len(data) == samples:
           break
     if samples == 1:
       data = data[0]
+
+    return data
+
+  def get_topic_indices(self, topics):
+    columns = self.protocol.columns
+    indices = {}
+    if len(topics):
+      for topic in topics:
+        for i, column in enumerate(columns):
+          if topic in column:
+            indices[column] = i
+    else:
+      for i, column in enumerate(columns):
+          indices[column] = i
+    return indices
+
+  def get_topics_from_data(self, rawData, topics = []):
+    columns = self.protocol.columns[:len(rawData)]
+    indices = self.get_topic_indices(topics)
+
+    def put(d, keys, item):
+      if "." in keys:
+          key, rest = keys.split(".", 1)
+          if key not in d:
+              d[key] = {}
+          put(d[key], rest, item)
+      else:
+          d[keys] = item
+
+    data = {}
+    for key, value in indices.items():
+      put(data, key, rawData[value])
+
     return data
 
   def stream_read_topic_raw(self, topic, samples = 10, timeaxis=False):

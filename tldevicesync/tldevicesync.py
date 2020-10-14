@@ -54,77 +54,66 @@ class DeviceSync():
         exitmsg = exit_msg)
 
 class SyncStream():
-  def __init__(self, streams = []):
+  def __init__(self, devices = [], streams = []):
+    self.devices = devices
     self.streams = streams
 
   def sync(self, flush=True):
     # Find the initial datum time
     times = []
-    data = []
-    for stream in self.streams:
-      row = stream(samples=1, flush=flush, timeaxis=True)
-      times += [row[0]]
-      data += row[1:]
+    for device in self.devices:
+      time, row = device._tio.stream_read_raw(flush=True, timeaxis=False)
+      times.append(time)
 
     # Ensure the times match up!
-    # If not, catch up on the streams that are behind
+    # If not, catch up on the devices that are behind
     maxtime = max(times)
     mintime = min(times)
     if maxtime != mintime:
-      for i,stream in enumerate(self.streams):
+      for i,device in enumerate(self.devices):
         max_deviation = 0
         while times[i] < maxtime:
-          print(f"Drop a sample on stream {i}")
-          times[i] = stream(samples=1, flush=False, timeaxis=True)[0]
-          max_deviation -= 1
-          if max_deviation > 5:
-            raise Exception("Can't sync stream!")
+          print(f"Drop a sample from stream {i}")
+          times[i] = device._tio.stream_read_raw(flush=False)[0]
+          max_deviation += 1
+          # if max_deviation > 5:
+          #   raise Exception("Can't sync stream!")
 
-  def read(self, samples = 1, duration=None, timeaxis=True, sync=True):
+  def read(self, sync=True, parse=False):
     if sync:
       self.sync()
 
     # Acquire data
-    times = []
-    data = [] 
-    for stream in self.streams:
-      streamdata = stream(samples=samples, duration=duration, flush=False, timeaxis=True)
-      times += [streamdata[0]]
-      data += streamdata[1:]
+    streamdata = {}
+    starttimes = []
+    for device in self.devices:
+      time, data = device._tio.stream_read_raw(flush=False)
+      parsedData = device._tio.get_topics_from_data(data, self.streams)
+      streamdata[device._shortname] = parsedData
+      starttimes.append(time)
     
-    if samples == 1:
-      starttimes = times
-    else:
-      starttimes = [timecol[0] for timecol in times]
-
     if max(starttimes) != min(starttimes):
       delta = max(starttimes) - min(starttimes)
-      raise Exception(f"Streams out of sync by {delta}!")
-    
-    if timeaxis:
-      data = [times[0]] + data
+      self.sync()
+      print(f"Streams out of sync by {delta}!")
+      # raise Exception(f"Streams out of sync by {delta}!")
 
-    return data
-    
-  def columnnames(self, timeaxis=True):
-    # TODO: Get resource shortname + routing; vmr0.vector.x
-    names = []
-    for stream in self.streams:
-      names += stream.columnnames()
-    if timeaxis:
-      names = ["time"] + names
-    return names
+    if parse:
+      return map(lambda row: device._tio.parse_data(row), streamdata)
+
+    return streamdata
 
   def iter(self, samples=0, sync=True):
     if sync:
-      yield self.read(samples = 1, sync=sync)
-      samples -= 1
-    if samples<=0:
-      while True:
-        yield self.read(samples = 1, sync=False)
+      yield self.read(sync=True)
+    counter = samples
+    if counter:
+      while counter > 0:
+        yield self.read(sync=False)
+        counter -= 1
     else:
-      for x in range(number):
-        yield self.read(samples = 1, sync=False)
+      while True:
+        yield self.read(sync=False)
   
 if __name__ == "__main__":
   device = DeviceSync()
