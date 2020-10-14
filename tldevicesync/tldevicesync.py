@@ -82,7 +82,7 @@ class SyncStream():
           # if max_deviation > 5:
           #   raise Exception("Can't sync stream!")
 
-  def read(self, sync=True, parse=False):
+  def read(self, sync=True):
     if sync:
       self.sync()
 
@@ -100,9 +100,6 @@ class SyncStream():
       self.sync()
       print(f"Streams out of sync by {delta}!")
       # raise Exception(f"Streams out of sync by {delta}!")
-
-    if parse:
-      return map(lambda row: device._tio.parse_data(row), streamdata)
 
     return streamdata
 
