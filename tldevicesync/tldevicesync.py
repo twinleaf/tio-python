@@ -92,6 +92,7 @@ class SyncStream():
     for device in self.devices:
       time, data = device._tio.stream_read_raw(flush=False)
       parsedData = device._tio.get_topics_from_data(data, self.streams)
+      parsedData['time'] = time
       streamdata[device._shortname] = parsedData
       starttimes.append(time)
     
