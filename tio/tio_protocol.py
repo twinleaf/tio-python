@@ -283,7 +283,7 @@ class TIOProtocol(object):
           self.streamCompile(streams)
 
     elif payloadType == TL_PTYPE_HEARTBEAT:
-      self.logger.debug(f"Stream packet; not  {payloadType}")
+      # self.logger.debug(f"Heartbeat.")
       return parsedPacket
 
     elif payloadType > 128:
