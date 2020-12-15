@@ -156,7 +156,8 @@ class TIOSession(object):
         time.sleep(0.5) # Wait to make sure all the send_all info came through
         waited += 1
         if waited >= 8:
-          raise IOError("Did not get stream info after data.send_all.")
+          break
+          # raise IOError("Did not get stream info after data.send_all.")
       rpcState = [self.rpcs, self.rpcNames]
       protocolState = self.protocol.stateExport()
       if not os.path.exists(pickleCacheDir):
