@@ -1,0 +1,9 @@
+{
+  "actions" : {
+    "build" : {
+      "enabled" : true,
+      "script" : "pip3 install . --upgrade"
+    }
+  },
+  "identifier" : "BF6AC836-575A-4174-A6EB-BE557037FB0E"
+}
