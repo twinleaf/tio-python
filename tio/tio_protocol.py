@@ -320,6 +320,7 @@ class TIOProtocol(object):
       stream['stream_column_start'] = column
       stream['stream_period_us'] = period_us * stream['stream_period']
       stream['stream_Fs'] = 1e6/stream['stream_period_us']
+      stream['stream_start_time_sec'] = self.timebases[self.streamInfo['stream_timebase_id']]['timebase_start_time']/1e9
       self.sources[stream['source_name']]['Fs'] = stream['stream_Fs']
 
       columnsByName[ stream['source_name'] ] = stream
@@ -375,6 +376,7 @@ class TIOProtocol(object):
     data = struct.unpack( self.rowunpackByBytes[packet_bytes], parsedPacket['rawdata'] )
     if timeaxis:
       time = parsedPacket['sampleNumber'] / self.streams[0]['stream_Fs']
+      time += self.streams[0]['stream_start_time_sec']
       return time,data
     else:
       return data

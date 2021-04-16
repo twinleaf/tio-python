@@ -110,7 +110,7 @@ with open(args.logfile,'rb') as f:
           rowstring += "\t".join(map(str,data))
           # Add blanks to pack out when absent data
           rowstring += "\t"*(len(sensors[routingBytes].columns)+1-rowsamples) # +1 for time column
-          rowstring += "\n"
+          rowstring = rowstring[:-1]+"\n"
           tempfiles[routingBytes].write(rowstring)
 
 for fd in tempfiles.values():
@@ -121,7 +121,7 @@ try:
 except:
   raise Exception("No metadata in sample enough to get a first sample. Sample for longer?")
 if firsttime>0:
-  print(f"Lopping off data until {firsttime} seconds!")
+  print(f"Discarding unaligned data until time {firsttime} s.")
 
 # Now write out combined file
 tempfilelist = []
@@ -137,7 +137,8 @@ with open(outputfile,'w') as fout:
     routingstring="/".join(map(str,list(routingBytes)))+"/"
     if len(sensors[routingBytes].columns)>0:
       for column in ["time"]+sensors[routingBytes].columns:
-        headerstring+= routingstring+column+"\t"
+        columnstring = routingstring+column+"\t"
+        headerstring += columnstring
   fout.write(headerstring[:-1]+"\n")
 
   while True:

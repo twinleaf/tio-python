@@ -145,6 +145,7 @@ class TIOSession(object):
       # Perform other qualification checks!
       [self.rpcs, self.rpcNames] = rpcState
       self.protocol.stateImport(protocolState)
+      self.data_send_all() # We should get up-to-date metadata, primarily for getting the absolute time.
     else:
       # RPCs are stashed here
       self.rpcs = []
