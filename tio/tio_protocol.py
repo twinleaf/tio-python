@@ -189,7 +189,7 @@ class TIOProtocol(object):
       parsedPacket['timebase_id']              = int(timebaseDescription[0])
       parsedPacket['timebase_source']          = int(timebaseDescription[1])
       parsedPacket['timebase_epoch']           = int(timebaseDescription[2])
-      parsedPacket['timebase_start_time']      = int(timebaseDescription[3])
+      parsedPacket['timebase_start_time']      = int(timebaseDescription[3])/1000000000
       parsedPacket['timebase_period_num_us']   = int(timebaseDescription[4])
       parsedPacket['timebase_period_denom_us'] = int(timebaseDescription[5])
       parsedPacket['timebase_flags']           = int(timebaseDescription[6])
@@ -209,7 +209,7 @@ class TIOProtocol(object):
       self.timebases[parsedPacket['timebase_id']] = parsedPacket
     
       self.logger.debug(f"timebase {parsedPacket['timebase_id']}: "+
-              f"{parsedPacket['timebase_Fs']} Hz")
+              f"{parsedPacket['timebase_Fs']} Hz, t0={parsedPacket['timebase_start_time']} s")
 
       self.streamCompile(self.streams)
 
@@ -320,7 +320,7 @@ class TIOProtocol(object):
       stream['stream_column_start'] = column
       stream['stream_period_us'] = period_us * stream['stream_period']
       stream['stream_Fs'] = 1e6/stream['stream_period_us']
-      stream['stream_start_time_sec'] = self.timebases[self.streamInfo['stream_timebase_id']]['timebase_start_time']/1e9
+      stream['stream_start_time_sec'] = self.timebases[self.streamInfo['stream_timebase_id']]['timebase_start_time']
       self.sources[stream['source_name']]['Fs'] = stream['stream_Fs']
 
       columnsByName[ stream['source_name'] ] = stream
