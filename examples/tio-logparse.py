@@ -54,12 +54,13 @@ if args.logfile[-4:]==".tio":
 else:
   outputfile = args.logfile+".tsv"
 
-# Start by allocating simple routing for four sensors attached to a single hub
+# First read through and generate individual files for each stream.
 routes=[]
 sensors={}
 tempfilenames = {}
 tempfiles = {}
 firsttimes = {}
+lasttimes = {}
 
 lines = 0
 with open(args.logfile,'rb') as f:
@@ -151,7 +152,10 @@ with open(outputfile,'w') as fout:
         break
       while time <= firsttime:
         linesegment = fd.readline()
-        time = float(linesegment.split('\t')[0])
+        try:
+          time = float(linesegment.split('\t')[0])
+        except:
+          raise IndexError("Could not find time alignment among streams")
       if linesegment != "":
         line += linesegment[:-1]+"\t"
     if line == "":
