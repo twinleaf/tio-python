@@ -46,6 +46,11 @@ parser.add_argument('--sth',
                     type=float,
                     default=10,
                     help='Factor by which slower streams are excluded from merge')
+parser.add_argument('--separate', 
+                    action="store_true",
+                    default=False,
+                    help='Do not merge the parsed files.')
+
 args = parser.parse_args()
 
 logLevel = logging.ERROR
@@ -88,16 +93,21 @@ for filename in filenames:
         payload = bytes(f.read(payloadSize+routingSize))
         packet = header+payload
         routingBytes = b''
+        routingString = "/"
         if routingSize > 0:
           routingBytes = payload[-routingSize:]
-        if routingBytes not in routes:
-          routes += [routingBytes]
-          sensors[routingBytes] = tio.TIOProtocol(verbose = args.vp, routing=list(routingBytes))
-          tempfilenames[routingBytes] = outputfile[:-4]+f"-{list(routingBytes)}.tsv"
-          tempfiles[routingBytes] = open(tempfilenames[routingBytes], 'w')
+          routingString += "/".join(map(str,list(routingBytes)))+"/"
+          # If there's more than one file, prefix the routing name with the filename
+        if len(filenames) > 1:
+          routingString = os.path.basename(filename[:-4]) + routingString
+        if routingString not in routes:
+          routes += [routingString]
+          sensors[routingString] = tio.TIOProtocol(verbose = args.vp, routing=list(routingBytes))
+          tempfilenames[routingString] = outputfile[:-4]+f"-{list(routingBytes)}.tsv"
+          tempfiles[routingString] = open(tempfilenames[routingString], 'w')
   
         try:
-          parsedPacket = sensors[routingBytes].decode_packet(packet)
+          parsedPacket = sensors[routingString].decode_packet(packet)
         except Exception as error:
           logger.debug('Error decoding packet:');
           hexdump.hexdump(packet)
@@ -107,23 +117,44 @@ for filename in filenames:
           print(parsedPacket)
   
         if parsedPacket['type'] == tio.TL_PTYPE_STREAM0:
-          row = sensors[routingBytes].stream_data(parsedPacket, timeaxis=True)
+          row = sensors[routingString].stream_data(parsedPacket, timeaxis=True)
           if row !=[]:
             time,data = row
-            if routingBytes not in firsttimes.keys():
-              firsttimes[routingBytes] = time
-            if routingBytes not in datarates.keys():
-              datarates[routingBytes] = sensors[routingBytes].streams[0]['stream_Fs'] 
+            if routingString not in firsttimes.keys():
+              # This is the first row
+              firsttimes[routingString] = time
+              datarates[routingString] = sensors[routingString].streams[0]['stream_Fs'] 
+              # Write out columns
+              headerString = ""
+              if len(sensors[routingString].columns)>0:
+                for column in ["time"]+sensors[routingString].columns:
+                  headerString += routingString+column+"\t"
+                tempfiles[routingString].write(headerString[:-1]+"\n")
             rowsamples = len(data)
             rowstring = str(time)+"\t"
             rowstring += "\t".join(map(str,data))
             # Add blanks to pack out when absent data
-            rowstring += "\t"*(len(sensors[routingBytes].columns)+1-rowsamples) # +1 for time column
+            rowstring += "\t"*(len(sensors[routingString].columns)+1-rowsamples) # +1 for time column
             rowstring = rowstring[:-1]+"\n"
-            tempfiles[routingBytes].write(rowstring)
+            tempfiles[routingString].write(rowstring)
 
 for fd in tempfiles.values():
   fd.close()
+
+print(f"Found data streams from routes:")
+[print(f"- {route}") for route in routes]
+
+if args.separate:
+  exit
+
+# Remove routes that don't have valid start times
+for idx,route in enumerate(list(routes)): # copy the routes
+  if route not in firsttimes.keys():
+    print(f"NB: Not merging from route {route} because the timing metadata is missing.")
+    tempfiles.pop(route)
+    tempfilenames.pop(route)
+    sensors.pop(route)
+    routes.remove(route)
 
 try:
   firsttime = max(firsttimes.values())
@@ -138,8 +169,7 @@ if firsttime>1000000000: # Sat Sep 08 2001 21:46:40 UTC-0400 (EDT)
   # Find all the files that use local time and remove them from merging
   for idx, thisfirsttime in enumerate(firsttimes.values()):
     if thisfirsttime < 1000000000:
-      routestr = "/".join(map(str,list(routes[idx])))+"/"
-      print(f"NB: Not merging from route {routestr} because its starting time {thisfirsttime} s does not appear to have a global timestamp.")
+      print(f"NB: Not merging from route {routes[idx]} because its starting time {thisfirsttime} s does not appear to have a global timestamp.")
       tempfiles.pop(routes[idx])
       tempfilenames.pop(routes[idx])
       sensors.pop(routes[idx])
@@ -156,31 +186,28 @@ slowerThreshold = args.sth
 dataratemax = max(datarates.values())
 for idx, datarate in enumerate(datarates.values()):
   if datarate < dataratemax / slowerThreshold:
-    routestr = "/".join(map(str,list(routes[idx])))+"/"
-    print(f"NB: Not merging from route {routestr} because its data rate {datarate} Hz < dominant rate {dataratemax} Hz / {slowerThreshold}." )
+    print(f"NB: Not merging from route {routes[idx]} because its data rate {datarate} Hz < dominant rate {dataratemax} Hz / {slowerThreshold}." )
     tempfiles.pop(routes[idx])
     tempfilenames.pop(routes[idx])
     sensors.pop(routes[idx])
     firsttimes.pop(routes[idx])
     routes.pop(idx)
 
+print(f"Merging data streams from routes:")
+[print(f"- {route} starting {firsttimes[route]}") for route in routes]
+
 # Now write out combined file
 tempfilelist = []
-for routingBytes in routes:
-  #print(tempfilenames)
-  #print(routingBytes)
-  fd = open(tempfilenames[routingBytes], 'r')
+for routingString in routes:
+  fd = open(tempfilenames[routingString], 'r')
   tempfilelist += [ fd ]
 
 with open(outputfile,'w') as fout:
-  headerstring=""
-  for routingBytes in routes:
-    routingstring="/".join(map(str,list(routingBytes)))+"/"
-    if len(sensors[routingBytes].columns)>0:
-      for column in ["time"]+sensors[routingBytes].columns:
-        columnstring = routingstring+column+"\t"
-        headerstring += columnstring
-  fout.write(headerstring[:-1]+"\n")
+  headerString=""
+  for fd in tempfilelist:
+    headerString += fd.readline()[:-1] + "\t"
+  headerString = headerString[:-1]+"\n"
+  fout.write(headerString)
 
   while True:
     line = ""
