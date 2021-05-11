@@ -1,0 +1,10 @@
+{
+  "actions" : {
+    "build" : {
+      "enabled" : false,
+      "script" : "rm dist\/*\npython3 -m pip install --upgrade build\npython3 -m build\npython3 twine upload --repository pypi dist\/*\n"
+    }
+  },
+  "identifier" : "7FB91910-B94E-4AE4-B478-9D1C86BCEA5C",
+  "openLogOnRun" : "fail"
+}
