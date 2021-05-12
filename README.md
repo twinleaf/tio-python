@@ -34,6 +34,8 @@ The interactive prompt is a lot better if ipython is available (`pip3 install ip
 
 Windows users who can't run python might need to [add python to their path](https://www.pythoncentral.io/add-python-to-path-python-is-not-recognized-as-an-internal-or-external-command/).
 
+Windows users who run into an error installing packages may need to [enable long paths](https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation).
+
 ### Optional installation
 
 iPython greatly enhances the interactive itio.py program. It is possible to explore the properties of a device by using tab completion to see available properties and methods. Get it
