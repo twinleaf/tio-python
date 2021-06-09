@@ -15,8 +15,8 @@ import types
 import re
 
 class Device():
-  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True, connectingMessage = True, send_router=None, specialize=True):
-    self._tio = tio.TIOSession(url, verbose=verbose, rpcs=rpcs, stateCache=stateCache, connectingMessage = connectingMessage, send_router=send_router, specialize=specialize)
+  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True, connectingMessage = True, send_router=None, specialize=True, timeout=False):
+    self._tio = tio.TIOSession(url, verbose=verbose, rpcs=rpcs, stateCache=stateCache, connectingMessage = connectingMessage, send_router=send_router, specialize=specialize, timeout=timeout)
     self.dev = TwinleafDevInfoController(self)
     if specialize:
       self._specialize()

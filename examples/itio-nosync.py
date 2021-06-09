@@ -28,7 +28,11 @@ parser.add_argument('-r',
                     action="store_false",
                     default=True,
                     help='Ignore and rebuild rpc/stream cache')
+parser.add_argument('-t', 
+                    action="store_true",
+                    default=False,
+                    help='Quit after 1 second network socket timeout')
 args = parser.parse_args()
 
-device = tldevice.Device(url=args.url, verbose=args.v, rpcs=args.rpc, stateCache=args.r)
+device = tldevice.Device(url=args.url, verbose=args.v, rpcs=args.rpc, stateCache=args.r, timeout=args.t)
 device._interact()

@@ -11,9 +11,9 @@ import threading
 import time
 
 class DeviceSync():
-  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True, connectingMessage = True, connectionTime = 1):
+  def __init__(self, url="tcp://localhost", verbose=False, rpcs=[], stateCache=True, connectingMessage = True, connectionTime = 1, timeout = False):
     self._routes = {}
-    self._routes["/"] = tldevice.Device(url=url, verbose=verbose, rpcs=rpcs, stateCache=stateCache, connectingMessage=connectingMessage)
+    self._routes["/"] = tldevice.Device(url=url, verbose=verbose, rpcs=rpcs, stateCache=stateCache, connectingMessage=connectingMessage, timeout = timeout)
     self._routes["/"]._tio.recv_router = self._recvRouter
     self.__dict__[self._routes["/"]._shortname] = self._routes["/"]
     time.sleep(connectionTime)

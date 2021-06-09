@@ -27,7 +27,7 @@ class TLRPCException(Exception):
     pass
 
 class TIOSession(object):
-  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, rpcs=[], stateCache = True, send_router=None, specialize=True):
+  def __init__(self, url="tcp://localhost", verbose=False, connectingMessage = True, rpcs=[], stateCache = True, send_router=None, specialize=True, timeout=False):
 
     if verbose:
       logLevel = logging.DEBUG
@@ -50,7 +50,8 @@ class TIOSession(object):
       elif self.uri.scheme == "udp":
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         #self.socket.bind(("", self.port))
-      self.socket.settimeout(1.0)
+      if timeout:
+        self.socket.settimeout(1.0)
     elif self.uri.scheme == "router":
       self.send_router = send_router
       self.recv_queue = queue.Queue(maxsize=1000)
