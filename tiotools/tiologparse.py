@@ -157,6 +157,7 @@ def main():
       tempfilenames.pop(route)
       sensors.pop(route)
       routes.remove(route)
+
   
   try:
     firsttime = max(firsttimes.values())
@@ -169,15 +170,17 @@ def main():
   # heuristic for whether there are valid unix timestamps
   if firsttime>1000000000: # Sat Sep 08 2001 21:46:40 UTC-0400 (EDT)
     # Find all the files that use local time and remove them from merging
-    for idx, thisfirsttime in enumerate(firsttimes.values()):
+    for route, thisfirsttime in firsttimes.items():
       if thisfirsttime < 1000000000:
         print(f"NB: Not merging from route {routes[idx]} because its starting time {thisfirsttime} s does not appear to have a global timestamp.")
-        tempfiles.pop(routes[idx])
-        tempfilenames.pop(routes[idx])
-        sensors.pop(routes[idx])
-        # firsttimes.pop(routes[idx])
-        datarates.pop(routes[idx])
-        routes.pop(idx)
+        tempfiles.pop(route)
+        tempfilenames.pop(route)
+        sensors.pop(route)
+        # firsttimes.pop(route)
+        datarates.pop(route)
+        routes.remove(route)
+      # else:
+        # print(f"Found metadata for route {route} with starting time {thisfirsttime}.")
   
   # discardedTime = max(firsttimes.values()) - min(firsttimes.values())
   # if discardedTime > 0:
