@@ -36,6 +36,11 @@ Windows users who can't run python might need to [add python to their path](http
 
 Windows users who run into an error installing packages may need to [enable long paths](https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation).
 
+When installed without sudo on macOS, add the following to your `~/.zshrc`:
+
+  export PATH=/Users/user/Library/Python/3.9/bin:$PATH
+
+
 ### Optional installation
 
 iPython greatly enhances the interactive itio.py program. It is possible to explore the properties of a device by using tab completion to see available properties and methods. Get it
