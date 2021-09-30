@@ -73,7 +73,7 @@ class SyncStream():
       for i,stream in enumerate(self.streams):
         max_deviation = 0
         while times[i] < maxtime:
-          print(f"Drop a sample on stream {i}")
+          # print(f"Drop a sample on stream {i}")
           times[i] = stream(samples=1, flush=False, timeaxis=True)[0]
           max_deviation -= 1
           if max_deviation > 5:

@@ -5,6 +5,15 @@ import tldevicesync
 
 tio = tldevicesync.DeviceSync()
 
-syncStreams = tio.syncStreamsStart([tio.vmr0.vector,tio.vmr1.vector])
-data = tio.syncStreamsRead(syncStreams, samples=3)
-print(data)
+print(tio.vmr0.vector.columnnames())
+
+ss = tldevicesync.SyncStream([tio.vmr0.vector,tio.vmr1.vector])
+
+print("\t".join(map(str,ss.columnnames())))
+
+i = 0
+for row in ss.iter():
+	print("\t".join(map(str,row)))
+	i = i+1
+	if i > 5:
+		break
