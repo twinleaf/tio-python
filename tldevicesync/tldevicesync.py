@@ -106,10 +106,10 @@ class SyncStream():
     return data
     
   def columnnames(self, timeaxis=True):
-    # TODO: Get resource shortname + routing; vmr0.vector.x
     names = []
     for stream in self.streams:
-      names += stream.columnnames()
+      streamColumnNames = [stream._dev._shortname + "." + name for name in stream.columnnames()]
+      names += streamColumnNames
     if timeaxis:
       names = ["time"] + names
     return names

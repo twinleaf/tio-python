@@ -4,13 +4,12 @@
 import tldevicesync
 
 tio = tldevicesync.DeviceSync()
+ss = tldevicesync.SyncStream([tio.vmr0.data,tio.vmr1.data])
 
-print(tio.vmr0.vector.columnnames())
-
-ss = tldevicesync.SyncStream([tio.vmr0.vector,tio.vmr1.vector])
-
+# Columns
 print("\t".join(map(str,ss.columnnames())))
 
+# Data
 i = 0
 for row in ss.iter():
 	print("\t".join(map(str,row)))
