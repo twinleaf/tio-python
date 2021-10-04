@@ -95,7 +95,7 @@ def monitor(dev, simple=False):
   signal.signal(signal.SIGINT, setExit)
   signal.signal(signal.SIGTERM, setExit)
 
-  for row in dev.data.stream_iter(): # This should block
+  for row in dev.data.iter(): # This should block
     sys.stdout.write(f"\r\n{dev._tio.name} - {dev._tio.desc}")
     ui.update(row)
 
