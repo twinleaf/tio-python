@@ -37,7 +37,7 @@ print(f"Logging to {args.logfile} ...")
 
 file.write("\t".join(map(str,device.data.columnnames()))+"\n")
 
-for row in device.data.stream_iter():
+for row in device.data.iter():
   # Tab delimited data
   rowstring = "\t".join(map(str,row))+"\n"
   # Write line
