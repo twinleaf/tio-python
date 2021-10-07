@@ -107,8 +107,10 @@ class Device():
       return self._tio.source_rate(self._sourceName)
     def columnnames(self, withName = True):
       return self._tio.stream_topic_columnnames(self._sourceName, withName = withName)
+    def queueSize(self):
+      return self._tio.pub_queue.qsize() # TODO: divide by stream column rate
     if sourceName is not "":
-      cls = type(name,(), {'__init__':__init__, '__call__':__call__, 'rate':rate, 'columnnames':columnnames})
+      cls = type(name,(), {'__init__':__init__, '__call__':__call__, 'rate':rate, 'columnnames':columnnames, 'queueSize':queueSize})
     else:
       cls = type(name,(), {'__init__':__init__})
     clsInstance = cls()

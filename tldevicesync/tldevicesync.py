@@ -113,7 +113,7 @@ class SyncStream():
 
   def readQueueSize(self):
     """This reports the queue depth for the first stream"""
-    return self.streams[0]._dev._tio.pub_queue.qsize()
+    return self.streams[0].queueSize()
 
   def readAvailable(self, timeaxis=True):
     samples = self.readQueueSize()

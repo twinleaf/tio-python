@@ -33,6 +33,9 @@ class TwinleafDataController(object):
         self._dev._tio.pub_warn_overload()
         yield self._dev._tio.stream_read_raw(samples = 1, flush=False, timeaxis=timeaxis)
 
+  def queueSize(self):
+    return self._dev._tio.pub_queue.qsize()
+
   def rate(self, value=None):
     if value is None:
       return self._dev._tio.protocol.streams[0]['stream_Fs'] 
