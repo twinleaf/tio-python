@@ -55,6 +55,7 @@ class DeviceSync():
 class SyncStream():
   def __init__(self, streams = []):
     self.streams = streams
+    self.sync()
 
   def sync(self, flush=True):
     # Find the initial datum time
@@ -64,6 +65,8 @@ class SyncStream():
       row = stream(samples=1, flush=flush, timeaxis=True)
       times += [row[0]]
       data += row[1:]
+
+    # TODO: Check that the streams have compatible data rates
 
     # Ensure the times match up!
     # If not, catch up on the streams that are behind
@@ -79,15 +82,18 @@ class SyncStream():
           if max_deviation > 5:
             raise Exception("Can't sync stream!")
 
-  def read(self, samples = 1, duration=None, timeaxis=True, sync=True):
-    if sync:
+  def __call__(self, samples = 1, duration=None, timeaxis=True, flush=True):
+    return self.read(samples = samples, duration=duration, timeaxis=timeaxis, flush=flush)
+
+  def read(self, samples = 1, duration=None, timeaxis=True, flush=True):
+    if flush:
       self.sync()
 
     # Acquire data
     times = []
     data = [] 
     for stream in self.streams:
-      streamdata = stream(samples=samples, duration=duration, flush=False, timeaxis=True)
+      streamdata = stream(samples=samples, duration=duration, timeaxis=True, flush=False)
       times += [streamdata[0]]
       data += streamdata[1:]
     
@@ -104,26 +110,33 @@ class SyncStream():
       data = [times[0]] + data
 
     return data
-    
-  def columnnames(self, timeaxis=True):
-    names = []
-    for stream in self.streams:
-      streamColumnNames = [stream._dev._shortname + "." + name for name in stream.columnnames()]
-      names += streamColumnNames
+
+  def readQueueSize(self):
+    """This reports the queue depth for the first stream"""
+    return self.streams[0]._dev._tio.pub_queue.qsize()
+
+  def readAvailable(self, timeaxis=True):
+    return self.read(samples=self.readQueueSize(), timeaxis=timeaxis, flush=False)
+
+  def columnnames(self, timeaxis=True, withName=True):
     if timeaxis:
-      names = ["time"] + names
+      names = ["time"]
+    else:
+      names = []
+    for stream in self.streams:
+      names += stream.columnnames(withName=withName)
     return names
 
-  def iter(self, samples=0, sync=True):
+  def iter(self, samples=0, flush=True):
     if sync:
-      yield self.read(samples = 1, sync=sync)
+      yield self.read(samples = 1, flush=flush)
       samples -= 1
     if samples<=0:
       while True:
-        yield self.read(samples = 1, sync=False)
+        yield self.read(samples = 1, flush=False)
     else:
       for x in range(number):
-        yield self.read(samples = 1, sync=False)
+        yield self.read(samples = 1, flush=False)
   
 if __name__ == "__main__":
   device = DeviceSync()

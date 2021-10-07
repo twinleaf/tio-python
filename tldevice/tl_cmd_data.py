@@ -11,11 +11,15 @@ class TwinleafDataController(object):
   def __init__(self, dev):
     self._dev = dev
 
-  def __call__(self, samples=1, duration=None, flush=True, timeaxis=False):
+  def __call__(self, samples=1, duration=None, timeaxis=False, flush=True):
     return self._dev._tio.stream_read_raw(samples = samples, duration=duration, flush=flush, timeaxis=timeaxis)
 
-  def columnnames(self):
-    return self._dev._tio.protocol.columns
+  def columnnames(self, withName=True):
+    columnnames = self._dev._tio.protocol.columns
+    if withName:
+      routingString = "/"+"/".join(map(str,self._dev._tio.routing))
+      columnnames = [self._dev._tio.name+' '+routingString+' '+columnname for columnname in columnnames ]
+    return columnnames
 
   def iter(self, samples=0, flush=True, timeaxis=False):
     if flush:

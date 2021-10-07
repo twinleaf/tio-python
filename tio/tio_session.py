@@ -387,7 +387,7 @@ class TIOSession(object):
       #return bool(self.rpc_val(topic+".data.active", UINT8_T))
       return topic in self.protocol.columnsByName.keys()
 
-  def stream_read_raw(self, samples = 1, duration=None, flush=True, timeaxis=False):
+  def stream_read_raw(self, samples = 1, duration=None, timeaxis=False, flush=True):
     if flush:
       self.pub_flush()
     data = []
@@ -435,7 +435,7 @@ class TIOSession(object):
       data = data[0]
     return data
 
-  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, flush=True, timeaxis=False):
+  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, timeaxis=False, flush=True):
     if autoActivate:
       wasActive = self.source_active(topic)
       if not wasActive:
@@ -449,11 +449,14 @@ class TIOSession(object):
       self.source_active(topic, False)
     return data
 
-  def stream_topic_columnnames(self, topic):
+  def stream_topic_columnnames(self, topic, withName = True):
     streamInfo = self.protocol.columnsByName[topic]
     column = streamInfo['stream_column_start']
     channels = streamInfo['source_channels']
     columnnames = self.protocol.columns[column:column+channels]
+    routingString = "/"+"/".join(map(str,self.routing))
+    if withName: 
+      columnnames = [self.name+' '+routingString+' '+columnname for columnname in columnnames ]
     return columnnames
 
   def source_rate(self, topic):
