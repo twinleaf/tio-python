@@ -116,7 +116,10 @@ class SyncStream():
     return self.streams[0]._dev._tio.pub_queue.qsize()
 
   def readAvailable(self, timeaxis=True):
-    return self.read(samples=self.readQueueSize(), timeaxis=timeaxis, flush=False)
+    samples = self.readQueueSize()
+    if samples < 1:
+      samples = 1
+    return self.read(samples=samples, timeaxis=timeaxis, flush=False)
 
   def columnnames(self, timeaxis=True, withName=True):
     if timeaxis:
@@ -128,8 +131,8 @@ class SyncStream():
     return names
 
   def iter(self, samples=0, flush=True):
-    if sync:
-      yield self.read(samples = 1, flush=flush)
+    if flush:
+      yield self.read(samples = 1, flush=True)
       samples -= 1
     if samples<=0:
       while True:
