@@ -130,6 +130,9 @@ class SyncStream():
       names += stream.columnnames(withName=withName)
     return names
 
+  def rate(self):
+    return self.streams[0].rate()
+
   def iter(self, samples=0, flush=True):
     if flush:
       yield self.read(samples = 1, flush=True)
