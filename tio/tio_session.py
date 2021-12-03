@@ -436,7 +436,7 @@ class TIOSession(object):
         data = data[0]
     return data
 
-  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, timeaxis=False, flush=Truem, resize=True):
+  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, timeaxis=False, flush=True, resize=True):
     if autoActivate:
       wasActive = self.source_active(topic)
       if not wasActive:
