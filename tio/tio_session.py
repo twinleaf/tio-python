@@ -218,10 +218,8 @@ class TIOSession(object):
         pass
       # Send heartbeat; need to regulate this somewhat
       #print("❤️")
-      try:
-        self.send(self.protocol.heartbeat())
-      except Exception as e:
-        continue
+      
+      self.send(self.protocol.heartbeat())
 
   def pub_flush(self):
     while not self.pub_queue.empty():
