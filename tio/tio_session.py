@@ -221,6 +221,7 @@ class TIOSession(object):
       try:
         self.send(self.protocol.heartbeat())
       except Exception:
+        print("ignoring heartbeat")
         continue
 
   def pub_flush(self):
