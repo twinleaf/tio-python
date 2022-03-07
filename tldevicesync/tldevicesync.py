@@ -96,8 +96,8 @@ class SyncStream():
       streamdata = stream(samples=samples, duration=duration, timeaxis=True, flush=False)
       times += [streamdata[0]]
       data += streamdata[1:]
-    
-    if samples == 1:
+
+    if len(data[0])==1:
       starttimes = times
     else:
       starttimes = [timecol[0] for timecol in times]
