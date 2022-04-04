@@ -200,7 +200,10 @@ class TIOProtocol(object):
         and parsedPacket['timebase_period_num_us'] is not 0:
          parsedPacket['timebase_period_us'] = parsedPacket['timebase_period_num_us'] \
                                             / parsedPacket['timebase_period_denom_us']
-         parsedPacket['timebase_Fs'] = 1e6/parsedPacket['timebase_period_us']
+         # Sample rate is required to be integer
+         # For 1pps sync; there are always an integer number of samples per second 
+         parsedPacket['timebase_Fs'] = int(1e6*parsedPacket['timebase_period_denom_us'] \
+                                             / parsedPacket['timebase_period_num_us'])
       else:
          parsedPacket['timebase_period_us'] = math.nan
          parsedPacket['timebase_Fs'] = math.nan
