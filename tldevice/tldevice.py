@@ -101,8 +101,8 @@ class Device():
     def __init__(self):
       self._tio = parent._tio
       self._sourceName = sourceName
-    def __call__(self, samples=1, duration=None, flush=True, timeaxis=False):
-      return self._tio.stream_read_topic(self._sourceName, samples=samples, duration=duration, flush=flush, timeaxis=timeaxis)
+    def __call__(self, samples=1, duration=None, flush=True, timeaxis=False, resize=True):
+      return self._tio.stream_read_topic(self._sourceName, samples=samples, duration=duration, flush=flush, timeaxis=timeaxis, resize=resize)
     def rate(self):
       return self._tio.source_rate(self._sourceName)
     def columnnames(self, withName = True):
