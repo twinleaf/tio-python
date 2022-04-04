@@ -156,8 +156,7 @@ class TIOProtocol(object):
           if lostPackets < 0:
             self.logger.debug(f"Stream was reset.")
           else:
-            #self.logger.error(f"Stream dropped {lostPackets} packet(s).")
-            self.logger.debug(f"Stream dropped {lostPackets} packet(s).")
+            self.logger.debug(f"Stream dropped {lostPackets} packet(s) after sample number {self.lastSampleNumber}.")
       self.lastSampleNumber = sampleNumber
       try:
         self.timebases[self.streamInfo['stream_timebase_id']]
@@ -207,9 +206,10 @@ class TIOProtocol(object):
          parsedPacket['timebase_Fs'] = math.nan
       
       self.timebases[parsedPacket['timebase_id']] = parsedPacket
-    
-      self.logger.debug(f"timebase {parsedPacket['timebase_id']}: "+
-              f"{parsedPacket['timebase_Fs']} Hz, t0={parsedPacket['timebase_start_time']} s")
+
+      self.logger.debug(f"timebase {parsedPacket['timebase_id']}: " +
+              f"{parsedPacket['timebase_Fs']} Hz, t0={parsedPacket['timebase_start_time']} s" +
+              f" (period = {parsedPacket['timebase_period_num_us']}/{parsedPacket['timebase_period_denom_us']} µs)" )
 
       self.streamCompile(self.streams)
 
