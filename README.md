@@ -19,9 +19,9 @@ These examples can be called with "url" that is either a serial port (`/dev/cu.u
 
 [Python](https://www.python.org/downloads/) >= 3.6 is required.
 
-  - Windows may use the [python.org installer](https://www.python.org/downloads/)
+  - Windows may install via the [Microsoft Store](https://www.microsoft.com/store/productId/9PJPW5LDXLZ5) 
   - macOS may consider installing with [Homebrew](https://brew.sh): `brew install python3`
-  - linux use your native package manager; debian/ubuntu: `sudo apt-get install python3`.
+  - linux may use your native package manager; on debian/ubuntu use: `sudo apt-get install python3`.
 
 The interactive prompt is a lot better if ipython is available (`pip3 install ipython`).
 
@@ -29,12 +29,15 @@ The interactive prompt is a lot better if ipython is available (`pip3 install ip
 
 `tio-python` is uploaded to [PyPI](https://pypi.org) and can be installed/upgraded using `pip`:
 
-  - Windows Command Prompt `py -m pip install tio --upgrade`
-  - macOS/linux `pip3 install tio --upgrade`
+  - `pip3 install tio --upgrade`
 
 Windows users who can't run python might need to [add python to their path](https://www.pythoncentral.io/add-python-to-path-python-is-not-recognized-as-an-internal-or-external-command/).
 
 Windows users who run into an error installing packages may need to [enable long paths](https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation).
+
+Windows console scripts are installed in an odd folder which may be added to your path:
+
+  C:\Users\username\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\Scripts
 
 When installed without sudo on macOS, add the following to your `~/.zshrc`:
 
