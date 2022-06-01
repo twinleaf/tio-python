@@ -52,6 +52,10 @@ def main():
                       action="store_true",
                       default=False,
                       help='Do not merge the parsed files.')
+  parser.add_argument('--ragged', 
+                      action="store_true",
+                      default=False,
+                      help='Do not terminate the parsed log at the shortest data stream.')
   
   args = parser.parse_args()
   
@@ -67,6 +71,7 @@ def main():
   tempfilenames = {}
   tempfiles = {}
   firsttimes = {}
+  finaltimes = {}
   datarates = {}
   lines = 0
   
@@ -132,6 +137,8 @@ def main():
                   for column in ["time"]+sensors[routingString].columns:
                     headerString += routingString+column+"\t"
                   tempfiles[routingString].write(headerString[:-1]+"\n")
+              # Note the time (will be the final time after the end)
+              finaltimes[routingString] = time
               rowsamples = len(data)
               rowstring = str(time)+"\t"
               rowstring += "\t".join(map(str,data))
@@ -148,7 +155,8 @@ def main():
   
   if args.separate:
     exit
-  
+    stop
+
   # Remove routes that don't have valid start times
   for idx,route in enumerate(list(routes)): # copy the routes
     if route not in firsttimes.keys():
@@ -156,6 +164,8 @@ def main():
       tempfiles.pop(route)
       tempfilenames.pop(route)
       sensors.pop(route)
+      datarates.pop(route)
+      finaltimes.pop(route)
       routes.remove(route)
 
   
@@ -177,6 +187,7 @@ def main():
         tempfilenames.pop(route)
         sensors.pop(route)
         # firsttimes.pop(route)
+        finaltimes.pop(route)
         datarates.pop(route)
         routes.remove(route)
       # else:
@@ -185,22 +196,27 @@ def main():
   # discardedTime = max(firsttimes.values()) - min(firsttimes.values())
   # if discardedTime > 0:
   #   print(f"NB: Discarding up to the first {discardedTime} seconds of data to merge the logs")
-  
+  print(datarates)
   # If there are streams with widely varying data rates, then set aside the streams with low rates
   slowerThreshold = args.sth
   dataratemax = max(datarates.values())
-  for idx, datarate in enumerate(datarates.values()):
+  for route, datarate in datarates.items():
     if datarate < dataratemax / slowerThreshold:
-      print(f"NB: Not merging from route {routes[idx]} because its data rate {datarate} Hz < dominant rate {dataratemax} Hz / {slowerThreshold}." )
-      tempfiles.pop(routes[idx])
-      tempfilenames.pop(routes[idx])
-      sensors.pop(routes[idx])
-      firsttimes.pop(routes[idx])
-      routes.pop(idx)
+      print(f"NB: Not merging from route {route} because its data rate {datarate} Hz < dominant rate {dataratemax} Hz / {slowerThreshold}." )
+      tempfiles.pop(route)
+      tempfilenames.pop(route)
+      sensors.pop(route)
+      firsttimes.pop(route)
+      finaltimes.pop(route)
+      routes.remove(route)
   
   print(f"Merging data streams from routes:")
-  [print(f"- {route} starting {firsttimes[route]}") for route in routes]
+  [print(f"- {route} starting {firsttimes[route]}, ending {finaltimes[route]}") for route in routes]
   
+  finaltime = min(finaltimes.values())
+  if not args.ragged:
+    print(f"Stopping log at time {finaltime} s (use --ragged to suppress).")
+
   # Now write out combined file
   tempfilelist = []
   for routingString in routes:
@@ -231,6 +247,8 @@ def main():
         if linesegment != "":
           line += linesegment[:-1]+"\t"
       if line == "":
+        break
+      if time > finaltime and not args.ragged:
         break
       line = line[:-1]+"\n"
       fout.write(line)
