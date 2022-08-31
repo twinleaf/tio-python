@@ -387,7 +387,7 @@ class TIOSession(object):
       #return bool(self.rpc_val(topic+".data.active", UINT8_T))
       return topic in self.protocol.columnsByName.keys()
 
-  def stream_read_raw(self, samples = 1, duration=None, timeaxis=False, flush=True, simplify_single=True):
+  def stream_read_raw(self, samples = 1, duration=None, timeaxis=False, flush=True, simplify_single=True, transpose=True):
     if flush:
       self.pub_flush()
     data = []
@@ -401,6 +401,8 @@ class TIOSession(object):
           data += [ self.protocol.stream_data(parsedPacket, timeaxis=timeaxis) ]
         if len(data) == samples:
           break
+    if transpose:
+      data = [list(x) for x in zip(*data)]
     if simplify_single and samples == 1:
       data = data[0]
     return data
