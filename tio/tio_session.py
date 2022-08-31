@@ -387,7 +387,7 @@ class TIOSession(object):
       #return bool(self.rpc_val(topic+".data.active", UINT8_T))
       return topic in self.protocol.columnsByName.keys()
 
-  def stream_read_raw(self, samples = 1, duration=None, timeaxis=False, flush=True, resize=True):
+  def stream_read_raw(self, samples = 1, duration=None, timeaxis=False, flush=True, simplify_single=True):
     if flush:
       self.pub_flush()
     data = []
@@ -401,11 +401,11 @@ class TIOSession(object):
           data += [ self.protocol.stream_data(parsedPacket, timeaxis=timeaxis) ]
         if len(data) == samples:
           break
-    if resize and samples == 1:
+    if simplify_single and samples == 1:
       data = data[0]
     return data
 
-  def stream_read_topic_raw(self, topic, samples = 10, timeaxis=False, resize=True):
+  def stream_read_topic_raw(self, topic, samples = 10, timeaxis=False, simplify_single=True):
     streamInfo = self.protocol.columnsByName[topic]
     column = streamInfo['stream_column_start']
     channels = streamInfo['source_channels']
@@ -429,14 +429,14 @@ class TIOSession(object):
     data = [[row for row in data_flat[column::channels]] for column in range(channels)] # group data by channel
     if timeaxis:
       data = [times] + data
-    if resize:
+    if simplify_single:
       if samples == 1:
         data = [datum[0] for datum in data]
       if len(data) == 1:
         data = data[0]
     return data
 
-  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, timeaxis=False, flush=True, resize=True):
+  def stream_read_topic(self, topic, samples = 1, duration = None, autoActivate=True, timeaxis=False, flush=True, simplify_single=True):
     if autoActivate:
       wasActive = self.source_active(topic)
       if not wasActive:
@@ -445,7 +445,7 @@ class TIOSession(object):
       samples = int(duration * self.protocol.sources[topic]['Fs'])
     if flush:
       self.pub_flush()
-    data = self.stream_read_topic_raw(topic, samples, timeaxis=timeaxis, resize=resize)
+    data = self.stream_read_topic_raw(topic, samples, timeaxis=timeaxis, simplify_single=simplify_single)
     if autoActivate and not wasActive:
       self.source_active(topic, False)
     return data
