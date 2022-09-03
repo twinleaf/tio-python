@@ -82,7 +82,6 @@ class TIOSession(object):
     routingStrings = filter(lambda a: a != '', routingStrings)
     try:
       self.routing = [ int(address) for address in routingStrings ]
-      self.routing = self.routing[::-1] # First child node is outermost routing byte 
     except:
       raise Exception(f'Bad routing path: {routingString}')
 

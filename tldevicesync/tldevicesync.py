@@ -23,7 +23,6 @@ class DeviceSync():
     if routingKey in self._routes.keys():
         self._routes[routingKey]._tio.recv_queue.put(packet)
     else: # Create new route
-      #print(f"Creating route to {routingKey}.")
       self._routes[routingKey] = tldevice.Device(url="router://interthread/"+routingKey, send_router = self._routes["/"]._tio.send, verbose=True, specialize=False)
       threading.Thread(target=self._specialize, args=(routingKey,)).start()
 

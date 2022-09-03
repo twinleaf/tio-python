@@ -87,7 +87,7 @@ TL_PACKET_MAX_ROUTING_SIZE = 8
 class TIOProtocol(object):
   def __init__(self, routing=[], verbose=False):
 
-    self.routingBytes = bytearray(routing)
+    self.routingBytes = bytearray(routing)[::-1] # First child note is specified by last routing byte
 
     logLevel = logging.ERROR
     if verbose:
@@ -132,12 +132,13 @@ class TIOProtocol(object):
     # Strip routing
     if routingSize > 0:
       routingBytes = packet[-routingSize:]
-      parsedPacket['routing'] = list(routingBytes)
+      parsedPacket['routing'] = list(routingBytes)[::-1]
     else:
+      routingBytes = b''
       parsedPacket['routing'] = []
 
     # Toss packet if it's wrong routing
-    if list(self.routingBytes) != parsedPacket['routing']:
+    if self.routingBytes != routingBytes:
       parsedPacket['type'] = TL_PTYPE_OTHER_ROUTING
       return parsedPacket
 
