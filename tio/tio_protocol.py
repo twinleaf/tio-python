@@ -323,7 +323,7 @@ class TIOProtocol(object):
       stream.update( sourceInfo )
       stream['stream_column_start'] = column
       stream['stream_period_us'] = period_us * stream['stream_period']
-      stream['stream_Fs'] = 1e6/stream['stream_period_us']
+      stream['stream_Fs'] = round(1e6/stream['stream_period_us']) # Round to nearest integer TODO: error for substantially non-integer frequencies
       stream['stream_start_time_sec'] = self.timebases[self.streamInfo['stream_timebase_id']]['timebase_start_time']
       self.sources[stream['source_name']]['Fs'] = stream['stream_Fs']
 
