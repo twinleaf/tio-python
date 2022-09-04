@@ -402,8 +402,8 @@ class TIOSession(object):
           break
     if transpose:
       data = [list(x) for x in zip(*data)]
-    if simplify_single and samples == 1:
-      data = data[0]
+    # if simplify_single and samples == 1:
+    #   data = data[0]
     return data
 
   def stream_read_topic_raw(self, topic, samples = 10, timeaxis=False, simplify_single=True):
