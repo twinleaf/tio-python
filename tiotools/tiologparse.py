@@ -197,7 +197,9 @@ def main():
   # discardedTime = max(firsttimes.values()) - min(firsttimes.values())
   # if discardedTime > 0:
   #   print(f"NB: Discarding up to the first {discardedTime} seconds of data to merge the logs")
-  print(datarates)
+
+  # print(datarates)
+
   # If there are streams with widely varying data rates, then set aside the streams with low rates
   slowerThreshold = args.sth
   dataratemax = max(datarates.values())
@@ -210,6 +212,8 @@ def main():
       firsttimes.pop(route)
       finaltimes.pop(route)
       routes.remove(route)
+
+  routes.sort()
   
   print(f"Merging data streams from routes:")
   [print(f"- {route} starting {firsttimes[route]}, ending {finaltimes[route]}") for route in routes]
