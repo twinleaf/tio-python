@@ -103,6 +103,7 @@ def main():
           routingString = "/"
           if routingSize > 0:
             routingBytes = payload[-routingSize:]
+            routingBytes = routingBytes[::-1] # Reverse order so that the upstream host comes first
             routingString += "/".join(map(str,list(routingBytes)))+"/"
             # If there's more than one file, prefix the routing name with the filename
           if len(filenames) > 1:
