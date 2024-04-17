@@ -165,8 +165,6 @@ def main():
       tempfiles.pop(route)
       tempfilenames.pop(route)
       sensors.pop(route)
-      datarates.pop(route)
-      finaltimes.pop(route)
       routes.remove(route)
 
   
