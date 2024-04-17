@@ -183,7 +183,7 @@ def main():
     # Find all the files that use local time and remove them from merging
     for route, thisfirsttime in firsttimes.items():
       if thisfirsttime < 1000000000:
-        print(f"NB: Not merging from route {routes[idx]} because its starting time {thisfirsttime} s does not appear to have a global timestamp.")
+        print(f"NB: Not merging from route {route} because its starting time {thisfirsttime} s does not appear to have a global timestamp.")
         tempfiles.pop(route)
         tempfilenames.pop(route)
         sensors.pop(route)
