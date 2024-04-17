@@ -155,8 +155,7 @@ def main():
   [print(f"- {route}") for route in routes]
   
   if args.separate:
-    exit
-    stop
+    exit(0)
 
   # Remove routes that don't have valid start times
   for idx,route in enumerate(list(routes)): # copy the routes
@@ -165,8 +164,6 @@ def main():
       tempfiles.pop(route)
       tempfilenames.pop(route)
       sensors.pop(route)
-      datarates.pop(route)
-      finaltimes.pop(route)
       routes.remove(route)
 
   
@@ -243,7 +240,7 @@ def main():
           time = float(linesegment.split('\t')[0])
         except:
           break
-        while time <= firsttime:
+        while time < firsttime:
           linesegment = fd.readline()
           try:
             time = float(linesegment.split('\t')[0])
