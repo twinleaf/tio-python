@@ -243,7 +243,7 @@ def main():
           time = float(linesegment.split('\t')[0])
         except:
           break
-        while time <= firsttime:
+        while time < firsttime:
           linesegment = fd.readline()
           try:
             time = float(linesegment.split('\t')[0])
