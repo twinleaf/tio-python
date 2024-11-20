@@ -145,12 +145,18 @@ class TIOSession(object):
       # Perform other qualification checks!
       [self.rpcs, self.rpcNames] = rpcState
       self.protocol.stateImport(protocolState)
-      self.data_send_all() # We should get up-to-date metadata, primarily for getting the absolute time.
+      try:
+        self.data_send_all() # We should get up-to-date metadata, primarily for getting the absolute time.
+      except:
+        print("Your device is using a new version of the twinleaf protocol. Please upgrade this tool.")
     else:
       # RPCs are stashed here
       self.rpcs = []
       self.rpcNames = {}
-      self.data_send_all() # Do this first so that we get all the data info while the RPCs are coming in.
+      try:
+        self.data_send_all() # Do this first so that we get all the data info while the RPCs are coming in.
+      except:
+        print("Your device is using a new version of the twinleaf protocol. Please upgrade this tool.")
       self.rpcList()
       waited = 0
       while self.protocol.streams==[]: 
