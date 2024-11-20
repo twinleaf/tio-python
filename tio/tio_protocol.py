@@ -23,6 +23,7 @@ TL_PTYPE_HEARTBEAT  = 5 # NOP heartbeat
 TL_PTYPE_TIMEBASE   = 6 # Update to a timebase's parameters
 TL_PTYPE_SOURCE     = 7 # Update to a source's parameters
 TL_PTYPE_STREAM     = 8 # Update to a stream's parameters
+TL_PTYPE_METADATA   = 11 # Update to a stream metadata (G2)
 TL_PTYPE_USER       = 64
 TL_PTYPE_STREAM0    = 128
 TL_PTYPE_OTHER_ROUTING = -1
@@ -288,6 +289,10 @@ class TIOProtocol(object):
 
     elif payloadType == TL_PTYPE_HEARTBEAT:
       # self.logger.debug(f"Heartbeat.")
+      return parsedPacket
+
+    elif payloadType == TL_PTYPE_METADATA:
+      # self.logger.debug(f"Metadata.")
       return parsedPacket
 
     elif payloadType > 128:
